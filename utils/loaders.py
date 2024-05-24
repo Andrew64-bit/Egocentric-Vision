@@ -7,6 +7,7 @@ from PIL import Image
 import os
 import os.path
 from utils.logger import logger
+import numpy as np
 
 class EpicKitchensDataset(data.Dataset, ABC):
     def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
@@ -47,9 +48,25 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
         self.list_file = pd.read_pickle(os.path.join(self.dataset_conf.annotations_path, pickle_name))
         logger.info(f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated")
+        # A single EpicVideoRecord is a single clip,
+        # example of tup is :
+        '''
+            (0, uid                        13744
+            participant_id               P08
+            video_id                  P08_09
+            narration          get mocha pot
+            start_timestamp      00:00:02.61
+            stop_timestamp       00:00:03.61
+            start_frame                  156
+            stop_frame                   216
+            verb                         get
+            verb_class                     0
+            Name: 0, dtype: object)
+        '''
         self.video_list = [EpicVideoRecord(tup, self.dataset_conf) for tup in self.list_file.iterrows()]
         self.transform = transform  # pipeline of transforms
         self.load_feat = load_feat
+        
 
         if self.load_feat:
             self.model_features = None
@@ -74,7 +91,43 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_train_indices")
+
+        num_frames_record = record.num_frames[modality] #100
+        num_frames_per_clip = self.num_frames_per_clip[modality] #20
+        num_clips = self.num_clips #8
+        stride = self.stride
+
+        # offset da sommare ad ogni index per centrare la clip
+        centroid_offset = num_frames_record / num_clips / 2 - ( num_frames_per_clip * stride / 2 )
+        segment_dim = num_frames_record / num_clips
+
+        all_indices = []
+
+        # --- dense sampling ---
+        if self.dense_sampling[modality]:
+            for _ in range(num_clips):
+                # prende un punto centrale randomico assicurandosi un certo offset dall'inizio e dalla fine
+                central_point = np.random.randint(centroid_offset, num_frames_record-centroid_offset)
+                # starting index of the clip, 0 in case of negative values
+                start_idx = max(0, central_point - num_frames_per_clip * stride / 2)
+                indices = [(idx * stride + start_idx) % num_frames_record for idx in range(num_frames_per_clip)]
+                indices.sort()
+                all_indices += indices            
+            
+        # --- uniform sampling ---
+        else:
+            central_point = np.random.randint(segment_dim, num_frames_record-segment_dim)
+            start_idx = max(0, central_point - segment_dim / 2)
+            # linspace per avere un array di indici equidistanti
+            all_indices += np.linspace(start_idx, start_idx + segment_dim, num=num_frames_per_clip, dtype=int).tolist()
+
+
+
+        # logger.info("----------------------")
+        # logger.info(f"num_frames : {num_frames_record}, indeces : {all_indices}")
+        # logger.info("----------------------")
+        
+        return all_indices
 
     def _get_val_indices(self, record, modality):
         ##################################################################
@@ -85,8 +138,55 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_val_indices")
+        
+        num_frames_record = record.num_frames[modality] #100
+        num_frames_per_clip = self.num_frames_per_clip[modality] #20
+        num_clips = self.num_clips #8
+        stride = self.stride
 
+        # offset da sommare ad ogni index per centrare la clip
+        centroid_offset = num_frames_record / num_clips / 2 - ( num_frames_per_clip * stride / 2 )
+        segment_dim = num_frames_record / num_clips
+
+        all_indices = []
+
+        # --- dense sampling ---
+        if self.dense_sampling[modality]:
+            
+            # prende il max index possibile per far stare la clip
+            max_idx = max(0, num_frames_record - segment_dim)
+            
+            # indici iniziali di ogni segmento centrati al centroide del segmento
+            clips_start_idx = np.linspace(0, max_idx, num=num_clips, dtype=float)
+            segment_dim = clips_start_idx[1]
+            # caso in cui i segmenti non si overlappano, centralizza il segmento
+            if segment_dim > num_frames_per_clip*stride:
+                clips_start_idx += centroid_offset
+
+            for start_idx in clips_start_idx:
+                indices = [(idx * stride +start_idx) % num_frames_record for idx in range(num_frames_per_clip)]
+                indices.sort()
+                all_indices += indices
+
+        # --- uniform sampling ---
+        else:
+            # prende il max index possibile per far stare la clip
+            max_idx = max(0, num_frames_record - segment_dim)
+            # indici iniziali di ogni segmento centrati al centroide del segmento
+            clips_start_idx = np.linspace(0, max_idx, num=num_clips, dtype=int)
+            segment_dim = clips_start_idx[1]
+            for start_idx in clips_start_idx:
+                all_indices += np.linspace(start_idx, start_idx + segment_dim, num=num_frames_per_clip, dtype=int).tolist()
+
+
+
+        # logger.info("----------------------")
+        # logger.info(f"num_frames : {num_frames_record}, indeces : {all_indices}")
+        # logger.info("----------------------")
+        
+        return all_indices
+
+    # item si riferisce alla singola clip
     def __getitem__(self, index):
 
         frames = {}
@@ -95,6 +195,20 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # notice that it is already converted into a EpicVideoRecord object so that here you can access
         # all the properties of the sample easily
         record = self.video_list[index]
+        # record is :
+        '''
+            (0, uid                        13744
+            participant_id               P08
+            video_id                  P08_09
+            narration          get mocha pot
+            start_timestamp      00:00:02.61
+            stop_timestamp       00:00:03.61
+            start_frame                  156
+            stop_frame                   216
+            verb                         get
+            verb_class                     0
+            Name: 0, dtype: object)
+        '''
 
         if self.load_feat:
             sample = {}
