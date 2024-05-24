@@ -39,6 +39,7 @@ def main():
     # this will output the domain conversion (D1 -> 8, et cetera) and the label list
     num_classes, valid_labels, source_domain, target_domain = utils.utils.get_domains_and_labels(args)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
     models = {}
     train_augmentations = {}
@@ -86,6 +87,7 @@ def save_feat(model, loader, device, it, num_classes):
     model.reset_acc()
     model.train(False)
     results_dict = {"features": []}
+    labels_dict = {"labels": []}
     num_samples = 0
     logits = {}
     features = {}
@@ -93,7 +95,7 @@ def save_feat(model, loader, device, it, num_classes):
     with torch.no_grad():
         for i_val, (data, label, video_name, uid) in enumerate(loader):
             label = label.to(device)
-
+            
             for m in modalities:
                 batch, _, height, width = data[m].shape
                 data[m] = data[m].reshape(batch, args.save.num_clips,
