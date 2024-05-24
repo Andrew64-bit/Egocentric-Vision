@@ -1,0 +1,8 @@
+/env
+/data
+/ek_data
+/TEST_RESULTS
+/Experiment_logs
+/saved_features
+/saved_models
+/.DS_Store
