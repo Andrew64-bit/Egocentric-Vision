@@ -95,7 +95,9 @@ def save_feat(model, loader, device, it, num_classes):
     with torch.no_grad():
         for i_val, (data, label, video_name, uid) in enumerate(loader):
             label = label.to(device)
-            
+            #NOTA BENE:  data rappresenta in questo caso una parte di video(stessa label) divisa
+            # in 5 clip e ogni clip ha 3 diverse augmentation
+
             for m in modalities:
                 batch, _, height, width = data[m].shape
                 data[m] = data[m].reshape(batch, args.save.num_clips,
@@ -105,11 +107,15 @@ def save_feat(model, loader, device, it, num_classes):
                 logits[m] = torch.zeros((args.save.num_clips, batch, num_classes)).to(device)
                 features[m] = torch.zeros((args.save.num_clips, batch, model.task_models[m]
                                            .module.feat_dim)).to(device)
-
+            #logger.info(f"------------------------------DATA(size = {data['RGB'].shape})------------------------------\n{data}")
+            #logger.info(f"------------------------------LABEL------------------------------\n{label[0].item()}")
+            #if i_val == 0:
+            #    raise NotImplementedError
             clip = {}
             for i_c in range(args.save.num_clips):
                 for m in modalities:
                     clip[m] = data[m][i_c].to(device)
+                #logger.info(f"------------------------------CLIP(size = {clip['RGB'].shape})------------------------------\n")
 
                 output, feat = model(clip)
                 feat = feat["features"]
@@ -122,6 +128,10 @@ def save_feat(model, loader, device, it, num_classes):
                 sample = {"uid": int(uid[i].cpu().detach().numpy()), "video_name": video_name[i]}
                 for m in modalities:
                     sample["features_" + m] = features[m][:, i].cpu().detach().numpy()
+                sample["label"] = label[0].item()
+                if len(label) != 1:
+                    logger.info("TROPPE LABEL -> SOLO UNA LABEL CI DEVE ESSERE")
+                    raise NotImplementedError
                 results_dict["features"].append(sample)
             num_samples += batch
 
