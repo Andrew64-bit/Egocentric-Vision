@@ -29,7 +29,7 @@ conf_path = os.path.join(os.path.dirname(__file__), '../configs')
 # Retrieve the default config
 args = OmegaConf.load(os.path.join(conf_path, "default.yaml"))
 
-# Read the cli args
+# Read the cli args #from command line
 cli_args = OmegaConf.from_cli()
 
 # read a specific config file

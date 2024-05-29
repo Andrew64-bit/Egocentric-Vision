@@ -66,7 +66,11 @@ class EpicKitchensDataset(data.Dataset, ABC):
         self.video_list = [EpicVideoRecord(tup, self.dataset_conf) for tup in self.list_file.iterrows()]
         self.transform = transform  # pipeline of transforms
         self.load_feat = load_feat
-        
+
+
+        #mappa_filtrata =list(zip(self.list_file["narration"][283:287],self.list_file["verb"][283:287],self.list_file["verb_class"][283:287]))
+        #logger.info(mappa_filtrata)
+
 
         if self.load_feat:
             self.model_features = None
@@ -152,7 +156,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
         # --- dense sampling ---
         if self.dense_sampling[modality]:
-            
+            #logger.info("___________________________________________________DENSE SAMPLING___________________________________________________")
             # prende il max index possibile per far stare la clip
             max_idx = max(0, num_frames_record - segment_dim)
             
@@ -170,6 +174,8 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
         # --- uniform sampling ---
         else:
+            #logger.info("___________________________________________________UNIFORM SAMPLING___________________________________________________")
+
             # prende il max index possibile per far stare la clip
             max_idx = max(0, num_frames_record - segment_dim)
             # indici iniziali di ogni segmento centrati al centroide del segmento
@@ -231,10 +237,14 @@ class EpicKitchensDataset(data.Dataset, ABC):
             else:
                 # here the testing indexes are obtained with no randomization, i.e., centered
                 segment_indices[modality] = self._get_val_indices(record, modality)
-
+        
+       
         for m in self.modalities:
             img, label = self.get(m, record, segment_indices[m])
             frames[m] = img
+    
+        #logger.info(f"------------------------------segment_indices(size = {len(segment_indices['RGB'])})------------------------------\n{segment_indices}\n------------------------------frames(size = {frames['RGB'].shape})------------------------------\n{frames['RGB'][0]}")
+
 
         if self.additional_info:
             return frames, label, record.untrimmed_video_name, record.uid
