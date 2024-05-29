@@ -290,3 +290,26 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
     def __len__(self):
         return len(self.video_list)
+
+
+class FeaturesDataset(data.Dataset):
+
+    def __init__(self, features_file, label_to_index):
+
+        features = pd.read_pickle(features_file)
+        list_of_features = [np.array(feature['features_RGB']) for feature in features["features"]]
+
+        labels = [feature['label'] for feature in features["features"]]
+
+        self.features = list_of_features
+        self.labels = labels
+        #self.features = torch.tensor([item['features_RGB'] for item in features['features']]).float()
+        #self.labels = df2['narration'].values
+        #self.label_to_index = label_to_index
+        #self.labels = [self.label_to_index[label] for label in self.labels]
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self,idx):
+        return self.features[idx], self.labels[idx]
