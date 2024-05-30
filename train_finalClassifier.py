@@ -16,7 +16,9 @@ if __name__ == '__main__':
     WEIGHT_DECAY = 1e-4
     STEP_SIZE = 30
     GAMMA = 0.1
-    DEVICE = 'cuda' if torch.cuda.is_available() else 'mps'
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if torch.backends.mps.is_available():
+        DEVICE = 'mps'
     NUM_EPOCHS = 50
 
     #### DATA SETUP
