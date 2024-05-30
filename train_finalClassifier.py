@@ -17,7 +17,7 @@ if __name__ == '__main__':
     STEP_SIZE = 30
     GAMMA = 0.1
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps'
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 50
 
     #### DATA SETUP
     # Define the transforms to use on images
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     ])
 
     # Define the Dataset object for training & testing
-    train_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl")
+    train_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'train')
     #test_dataset = PACSDataset(domain='sketch', transform=dataset_transform)
 
     # Define the DataLoaders
@@ -73,3 +73,20 @@ if __name__ == '__main__':
             
         scheduler.step()
         logger.info(f'[EPOCH {epoch+1}] Avg. Loss: {epoch_loss[0] / epoch_loss[1]}')
+        #save checkpoint in a file
+        torch.save(model.state_dict(), f'./saved_models/final_classifier_epoch_{epoch+1}.pth')
+
+    test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
+    test_loader = DataLoader(train_dataset, batch_size=1, num_workers=4)
+    logger.info(f"Test Dataset Size: {len(train_dataset)}")
+
+
+    model.eval()
+    acc = Accuracy()
+    for i_val,(x, y) in tqdm(enumerate(test_loader)):
+        x, y = x.to(DEVICE), y.to(DEVICE)
+        cls_o = model(x)
+        acc.update(cls_o, y)
+    logger.info(f"Test Accuracy: {acc.compute()}")
+
+        
