@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier, LSTMClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -56,6 +56,8 @@ if __name__ == '__main__':
         model = MLPWithDropout(1024,8)
     elif args.model == 'TransformerClassifier':
         model = TransformerClassifier(1024,8)
+    elif args.model == 'LSTMClassifier':
+        model = LSTMClassifier(1024,8)
     else:
         raise ValueError(f"Invalid model: {args.model}")
     
@@ -71,7 +73,7 @@ if __name__ == '__main__':
     logger.info(f"Test Dataset Size: {len(test_dataset)}")
 
     # Load the best model checkpoint
-    model.load_state_dict(torch.load('./saved_models/final_classifier_epoch_31.pth'))  # or the best epoch
+    model.load_state_dict(torch.load(f'./saved_models/{args.model}/final_{args.model}_epoch_10.pth'))  # or the best epoch
     model = model.to(DEVICE)
 
     # Evaluate the model

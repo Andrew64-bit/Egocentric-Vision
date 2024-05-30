@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
+from utils.logger import logger
 
 
 class MLP(nn.Module):
@@ -102,3 +103,23 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
+class LSTMClassifier(nn.Module):
+    def __init__(self, input_dim, num_class, hidden_dim = 128, num_layers = 2):
+        super(LSTMClassifier, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, num_class)
+    
+    def forward(self, x):
+        x = x.unsqueeze(1)  # Add a dimension for the sequence length
+        #logger.info(f"Input Shape: {x.shape}")
+        #logger.info(f"x.size(1) = {x.size(1)}")
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        
+        out, _ = self.lstm(x, (h0, c0))
+        out = out[:, -1, :]  # Prendere l'output del ultimo timestep
+        out = self.fc(out)
+        return out

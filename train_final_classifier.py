@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier, LSTMClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -49,6 +49,8 @@ if __name__ == '__main__':
         model = MLPWithDropout(1024,8)
     elif args.model == 'TransformerClassifier':
         model = TransformerClassifier(1024,8)
+    elif args.model == 'LSTMClassifier':
+        model = LSTMClassifier(1024,8)
     else:
         raise ValueError(f"Invalid model: {args.model}")
         
