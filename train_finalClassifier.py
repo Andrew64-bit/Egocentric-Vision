@@ -16,7 +16,9 @@ if __name__ == '__main__':
     WEIGHT_DECAY = 1e-4
     STEP_SIZE = 30
     GAMMA = 0.1
-    DEVICE = 'cuda' if torch.cuda.is_available() else 'mps'
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if torch.backends.mps.is_available():
+        DEVICE = 'mps'
     NUM_EPOCHS = 50
 
     #### DATA SETUP
@@ -60,7 +62,7 @@ if __name__ == '__main__':
 
             # Category Loss
             cls_o = model(x)
-            loss = F.cross_entropy(cls_o, y)
+            loss = F.cross_entropy(cls_o, y.long())
 
             optimizer.zero_grad()
             loss.backward()
