@@ -78,16 +78,18 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), f'./saved_models/final_classifier_epoch_{epoch+1}.pth')
 
     test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
-    test_loader = DataLoader(train_dataset, batch_size=1, num_workers=4)
-    logger.info(f"Test Dataset Size: {len(train_dataset)}")
+    test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
+    logger.info(f"Test Dataset Size: {len(test_dataset)}")
 
+
+    # Model Evaluation
 
     model.eval()
-    acc = Accuracy()
+    accuracy = Accuracy()
     for i_val,(x, y) in tqdm(enumerate(test_loader)):
         x, y = x.to(DEVICE), y.to(DEVICE)
         cls_o = model(x)
-        acc.update(cls_o, y)
-    logger.info(f"Test Accuracy: {acc.compute()}")
-
+        acc = accuracy(cls_o, y)
         
+
+
