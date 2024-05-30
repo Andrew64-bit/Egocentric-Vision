@@ -86,7 +86,7 @@ if __name__ == '__main__':
         scheduler.step()
         logger.info(f'[EPOCH {epoch+1}] Avg. Loss: {epoch_loss[0] / epoch_loss[1]}')
         #save checkpoint in a file
-        if epoch+1 % 10 == 0:
+        if (epoch+1) % 10 == 0:
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
 
     test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
