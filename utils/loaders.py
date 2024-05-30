@@ -296,21 +296,34 @@ class FeaturesDataset(data.Dataset):
 
     def __init__(self, features_file, mode='train'):
 
+        # Carica le feature dal file pickle
         features = pd.read_pickle(features_file)
+
+        # Estrai le feature e le etichette
         list_of_features = [np.array(f) for feature in features["features"] for f in feature['features_RGB']]
         labels = [feature['label'] for feature in features["features"]]
-        labels_extended = [label for label in labels for _ in range(5)] 
+        labels_extended = [label for label in labels for _ in range(5)]
 
-        nTrain = int(list_of_features.shape[1]*2.0/3.0)
+        # Converti list_of_features in un array NumPy
+        list_of_features = np.array(list_of_features)
+        labels_extended = np.array(labels_extended)
+
+        # Suddividi i dati in set di addestramento e di test
+        nTrain = int(len(list_of_features) * 2.0 / 3.0)
         np.random.seed(14)
-        idx = np.random.permutation(list_of_features.shape[1])
-        idxTrain = idx[0:nTrain]
+        idx = np.random.permutation(len(list_of_features))
+        idxTrain = idx[:nTrain]
         idxTest = idx[nTrain:]
-        self.DTR = list_of_features[:, idxTrain]
-        self.DTE = list_of_features[:, idxTest]
+
+        # Crea i set di addestramento e di test
+        self.DTR = list_of_features[idxTrain]
+        self.DTE = list_of_features[idxTest]
 
         self.LTR = labels_extended[idxTrain]
         self.LTE = labels_extended[idxTest]
+
+        logger.info("Training set size:", self.DTR.shape, self.LTR.shape)
+        logger.info("Test set size:", self.DTE.shape, self.LTE.shape)
         
         self.mode = mode
         # firs randomize the order 
