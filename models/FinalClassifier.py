@@ -7,6 +7,7 @@ class Classifier(nn.Module):
         self.num_class = num_class
         self.clip_feature_dim = clip_feature_dim
         self.classifier = self.fc_fusion()
+        
     def fc_fusion(self):
         num_bottleneck = 512
         classifier = nn.Sequential(
