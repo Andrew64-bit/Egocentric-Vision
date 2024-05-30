@@ -1,5 +1,5 @@
+from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier
 from utils.loaders import FeaturesDataset
-from models.FinalMLP import MLP
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torchmetrics import Accuracy
 from tqdm import tqdm
 from utils.logger import logger
+from utils.args import args
 
 if __name__ == '__main__':
     BATCH_SIZE = 32
@@ -20,6 +21,7 @@ if __name__ == '__main__':
     if torch.backends.mps.is_available():
         DEVICE = 'mps'
     NUM_EPOCHS = 50
+
 
     #### DATA SETUP
     # Define the transforms to use on images
@@ -41,7 +43,15 @@ if __name__ == '__main__':
 
     #### ARCHITECTURE SETUP
     # Create the Network Architecture object
-    model = MLP(1024,8)
+    if args.model == 'MLP':
+        model = MLP(1024,8)
+    elif args.model == 'MLPWithDropout':
+        model = MLPWithDropout(1024,8)
+    elif args.model == 'TransformerClassifier':
+        model = TransformerClassifier(1024,8)
+    else:
+        raise ValueError(f"Invalid model: {args.model}")
+        
     logger.info(f"Model: {model}")
 
     #### TRAINING SETUP
@@ -76,8 +86,8 @@ if __name__ == '__main__':
         scheduler.step()
         logger.info(f'[EPOCH {epoch+1}] Avg. Loss: {epoch_loss[0] / epoch_loss[1]}')
         #save checkpoint in a file
-        if epoch % 10 == 0:
-            torch.save(model.state_dict(), f'./saved_models/final_MLP_epoch_{epoch+1}.pth')
+        if epoch+1 % 10 == 0:
+            torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
 
     test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
     test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)

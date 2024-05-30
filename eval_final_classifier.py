@@ -1,3 +1,4 @@
+from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier
 from utils.loaders import FeaturesDataset
 from models.FinalClassifier import Classifier
 import torch
@@ -49,7 +50,15 @@ if __name__ == '__main__':
     
     #### ARCHITECTURE SETUP
     # Create the Network Architecture object
-    model = Classifier(1024,8)
+    if args.model == 'MLP':
+        model = MLP(1024,8)
+    elif args.model == 'MLPWithDropout':
+        model = MLPWithDropout(1024,8)
+    elif args.model == 'TransformerClassifier':
+        model = TransformerClassifier(1024,8)
+    else:
+        raise ValueError(f"Invalid model: {args.model}")
+    
     logger.info(f"Model: {model}")
 
     #### TRAINING SETUP
