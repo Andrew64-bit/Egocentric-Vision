@@ -1,6 +1,5 @@
 from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier
 from utils.loaders import FeaturesDataset
-from models.FinalClassifier import Classifier
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
@@ -9,6 +8,7 @@ import torch.nn.functional as F
 from torchmetrics import Accuracy
 from tqdm import tqdm
 from utils.logger import logger
+from utils.args import args
 
 # Evaluate the model
 def evaluate(model, test_loader, device):
