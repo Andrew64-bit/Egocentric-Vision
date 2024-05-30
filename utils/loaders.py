@@ -294,15 +294,15 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
 class FeaturesDataset(data.Dataset):
 
-    def __init__(self, features_file, label_to_index):
+    def __init__(self, features_file):
 
         features = pd.read_pickle(features_file)
-        list_of_features = [np.array(feature['features_RGB']) for feature in features["features"]]
-
+        list_of_features = [np.array(f) for feature in features["features"] for f in feature['features_RGB']]
         labels = [feature['label'] for feature in features["features"]]
-
+        labels_extended = [label for label in labels for _ in range(5)] 
+        
         self.features = list_of_features
-        self.labels = labels
+        self.labels = labels_extended
         #self.features = torch.tensor([item['features_RGB'] for item in features['features']]).float()
         #self.labels = df2['narration'].values
         #self.label_to_index = label_to_index
