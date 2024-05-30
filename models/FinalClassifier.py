@@ -1,9 +1,9 @@
 from torch import nn
 
 
-class Classifier(nn.Module):
+class MLP(nn.Module):
     def __init__(self, clip_feature_dim, num_class):
-        super(Classifier, self).__init__()
+        super(MLP, self).__init__()
         self.num_class = num_class
         self.clip_feature_dim = clip_feature_dim
         self.classifier = self.fc_fusion()
@@ -29,3 +29,5 @@ class Classifier(nn.Module):
 
     def forward(self, x):
         return self.classifier(x), {}'''
+
+
