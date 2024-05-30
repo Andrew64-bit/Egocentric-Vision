@@ -93,15 +93,6 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
     logger.info(f"Test Dataset Size: {len(test_dataset)}")
 
-
-    # Model Evaluation
-
-    model.eval()
-    accuracy = Accuracy()
-    for i_val,(x, y) in tqdm(enumerate(test_loader)):
-        x, y = x.to(DEVICE), y.to(DEVICE)
-        cls_o = model(x)
-        acc = accuracy(cls_o, y)
         
 
 
