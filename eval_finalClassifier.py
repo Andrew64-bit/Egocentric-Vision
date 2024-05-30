@@ -21,7 +21,7 @@ def evaluate(model, test_loader, device):
         for x, y in tqdm(test_loader):
             x, y = x.to(device), y.to(device)
             outputs = model(x)
-            loss = F.cross_entropy(outputs, y)
+            loss = F.cross_entropy(outputs, y.long())
             total_loss += loss.item() * x.size(0)
             total_samples += x.size(0)
             preds = torch.argmax(outputs, dim=1)

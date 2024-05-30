@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
             # Category Loss
             cls_o = model(x)
-            loss = F.cross_entropy(cls_o, y)
+            loss = F.cross_entropy(cls_o, y.long())
 
             optimizer.zero_grad()
             loss.backward()
