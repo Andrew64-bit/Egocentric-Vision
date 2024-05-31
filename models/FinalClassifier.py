@@ -3,6 +3,10 @@ from torch import nn
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from utils.logger import logger
+import torch.optim as optim
+import torch.utils.data as data
+import math
+import copy
 
 
 class MLP(nn.Module):
@@ -60,49 +64,6 @@ class MLPWithDropout(nn.Module):
     def forward(self, input):
         output = self.classifier(input)
         return output
-    
-
-class TransformerClassifier(nn.Module):
-    def __init__(self, clip_feature_dim, num_class, num_heads=8, num_layers=6, dim_feedforward=2048, dropout=0.1):
-        super(TransformerClassifier, self).__init__()
-        self.num_class = num_class
-        self.clip_feature_dim = clip_feature_dim
-
-        self.embedding = nn.Linear(clip_feature_dim, dim_feedforward)
-        self.positional_encoding = PositionalEncoding(dim_feedforward, dropout)
-        
-        encoder_layers = TransformerEncoderLayer(dim_feedforward, num_heads, dim_feedforward, dropout)
-        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
-        
-        self.classifier = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(dim_feedforward, num_class)
-        )
-        
-    def forward(self, input):
-        # input shape should be (batch_size, num_clips, clip_feature_dim)
-        input = self.embedding(input)  # embedding the input
-        input = self.positional_encoding(input)  # adding positional encoding
-        transformer_out = self.transformer_encoder(input)  # transformer encoder
-        output = self.classifier(transformer_out.mean(dim=1))  # average pooling across the sequence dimension
-        return output
-
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-torch.log(torch.tensor(10000.0)) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
 
 class LSTMClassifier(nn.Module):
     def __init__(self, input_dim, num_class, hidden_dim = 128, num_layers = 2):
@@ -124,3 +85,108 @@ class LSTMClassifier(nn.Module):
         out = out[:, -1, :]  # Prendere l'output del ultimo timestep
         out = self.fc(out)
         return out
+    
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+        
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads
+        
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)
+        self.W_o = nn.Linear(d_model, d_model)
+        
+    def scaled_dot_product_attention(self, Q, K, V, mask=None):
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
+        
+        if mask is not None:
+            attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
+        
+        attn_probs = torch.softmax(attn_scores, dim=-1)
+        output = torch.matmul(attn_probs, V)
+        return output
+        
+    def split_heads(self, x):
+        batch_size, d_model = x.size()
+        return x.view(batch_size, self.num_heads, self.d_k).transpose(1, 2)
+        
+    def combine_heads(self, x):
+        batch_size, _, d_k = x.size()
+        return x.transpose(1, 2).contiguous().view(batch_size, self.d_model)
+        
+    def forward(self, Q, K, V, mask=None):
+        Q = self.split_heads(self.W_q(Q))
+        K = self.split_heads(self.W_k(K))
+        V = self.split_heads(self.W_v(V))
+        
+        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
+        
+        output = self.W_o(self.combine_heads(attn_output))
+        return output
+
+class PositionWiseFeedForward(nn.Module):
+    def __init__(self, d_model, d_ff):
+        super(PositionWiseFeedForward, self).__init__()
+        self.fc1 = nn.Linear(d_model, d_ff)
+        self.fc2 = nn.Linear(d_ff, d_model)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        return self.fc2(self.relu(self.fc1(x)))
+    
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_seq_length):
+        super(PositionalEncoding, self).__init__()
+        
+        pe = torch.zeros(max_seq_length, d_model)
+        position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
+        
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        
+        self.register_buffer('pe', pe.unsqueeze(0))
+        
+    def forward(self, x):
+        return x + self.pe[0]
+    
+class EncoderLayer(nn.Module):
+    def __init__(self, d_model, num_heads, d_ff, dropout):
+        super(EncoderLayer, self).__init__()
+        self.self_attn = MultiHeadAttention(d_model, num_heads)
+        self.feed_forward = PositionWiseFeedForward(d_model, d_ff)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x, mask=None):
+        attn_output = self.self_attn(x, x, x, mask)
+        x = self.norm1(x + self.dropout(attn_output))
+        ff_output = self.feed_forward(x)
+        x = self.norm2(x + self.dropout(ff_output))
+        return x
+    
+
+class Transformer(nn.Module):
+    def __init__(self, num_heads, num_layers, d_ff, dropout, d_model=1024, max_seq_length=5000):
+        super(Transformer, self).__init__()
+        self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+
+        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
+
+        self.fc = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, src):
+        src_embedded = self.dropout(self.positional_encoding(src))
+
+        enc_output = src_embedded
+        for enc_layer in self.encoder_layers:
+            enc_output = enc_layer(enc_output)
+
+        output = self.fc(enc_output)
+        return output

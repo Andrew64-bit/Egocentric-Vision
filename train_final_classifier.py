@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier, LSTMClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, Transformer, LSTMClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -12,10 +12,10 @@ from utils.args import args
 
 if __name__ == '__main__':
     BATCH_SIZE = 32
-    LR = 0.01
+    LR = 0.001
     MOMENTUM = 0.9
     WEIGHT_DECAY = 1e-4
-    STEP_SIZE = 13
+    STEP_SIZE = 10
     GAMMA = 0.1
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
@@ -47,8 +47,14 @@ if __name__ == '__main__':
         model = MLP(1024,8)
     elif args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
-    elif args.model == 'TransformerClassifier':
-        model = TransformerClassifier(1024,8)
+    elif args.model == 'Transformer':
+        d_model = 1024
+        num_heads = 8
+        num_layers = 6
+        d_ff = 1024
+        max_seq_length = BATCH_SIZE
+        dropout = 0.1
+        model = Transformer(num_heads, num_layers, d_ff, dropout, d_model, max_seq_length)
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
     else:
@@ -61,7 +67,7 @@ if __name__ == '__main__':
     model = model.to(DEVICE)
 
     # Create Optimizer & Scheduler objects
-    optimizer = torch.optim.SGD(model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR, betas=(0.9, 0.98), eps=1e-9)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE, gamma=GAMMA)
 
 
