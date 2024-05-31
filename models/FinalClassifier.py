@@ -44,15 +44,16 @@ class MLPWithDropout(nn.Module):
         
     def fc_fusion(self):
         num_bottleneck = 512
+        num_bottleneck1 = 256
         classifier = nn.Sequential(
                 nn.ReLU(),
                 nn.Linear(self.clip_feature_dim, num_bottleneck),
                 nn.ReLU(),
                 nn.Dropout(0.5),
-                nn.Linear(num_bottleneck, num_bottleneck),
+                nn.Linear(num_bottleneck, num_bottleneck1),
                 nn.ReLU(),
                 nn.Dropout(0.5),
-                nn.Linear(num_bottleneck, self.num_class),
+                nn.Linear(num_bottleneck1, self.num_class),
                 )
         return classifier
     
