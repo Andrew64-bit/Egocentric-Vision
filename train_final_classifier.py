@@ -15,7 +15,7 @@ if __name__ == '__main__':
     LR = 0.01
     MOMENTUM = 0.9
     WEIGHT_DECAY = 1e-4
-    STEP_SIZE = 30
+    STEP_SIZE = 13
     GAMMA = 0.1
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
@@ -90,7 +90,8 @@ if __name__ == '__main__':
         #save checkpoint in a file
         if (epoch+1) % 10 == 0:
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
-
+        if (epoch+1) % STEP_SIZE == 0:
+            logger.info(f'Current LR: {scheduler.get_last_lr()}')
     test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
     test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
     logger.info(f"Test Dataset Size: {len(test_dataset)}")
