@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, TransformerClassifier, LSTMClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -9,6 +9,7 @@ from torchmetrics import Accuracy
 from tqdm import tqdm
 from utils.logger import logger
 from utils.args import args
+from transformers import ViTConfig, ViTForImageClassification
 
 # Evaluate the model
 def evaluate(model, test_loader, device):
@@ -21,7 +22,17 @@ def evaluate(model, test_loader, device):
     with torch.no_grad():
         for x, y in tqdm(test_loader):
             x, y = x.to(device), y.to(device)
+            if args.model == 'Transformer':
+                # Reshape il tensore in [batch_size, num_channels, height, width]
+                # Ogni vettore di 1024 elementi viene trasformato in una matrice 32x32
+                x = x.view(1, 1, 32, 32)  # batch_size=32, num_channels=1, height=32, width=32
+
             outputs = model(x)
+            #logger.info(f"Outputs: {outputs.size()}")
+            #logger.info(f"Y: {y.size()}")
+            if args.model == 'Transformer':
+                outputs = outputs.logits
+
             loss = F.cross_entropy(outputs, y.long())
             total_loss += loss.item() * x.size(0)
             total_samples += x.size(0)
@@ -54,8 +65,14 @@ if __name__ == '__main__':
         model = MLP(1024,8)
     elif args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
-    elif args.model == 'TransformerClassifier':
-        model = TransformerClassifier(1024,8)
+    elif args.model == 'Transformer':
+        # Internal configuration of the ViT model
+        configuration = ViTConfig()
+        configuration.num_channels = 1
+        configuration.image_size = 32
+        configuration.num_labels = 8
+        model = ViTForImageClassification(configuration)
+
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
     else:
@@ -73,7 +90,25 @@ if __name__ == '__main__':
     logger.info(f"Test Dataset Size: {len(test_dataset)}")
 
     # Load the best model checkpoint
+<<<<<<< Updated upstream
     model.load_state_dict(torch.load(f'./saved_models/{args.model}/final_{args.model}_epoch_40.pth'))  # or the best epoch
+=======
+    if args.model == '':
+        # Carica lo stato salvato
+        state_dict = torch.load(f'./saved_models/{args.model}/final_{args.model}_epoch_50.pth')
+        # Crea un nuovo state_dict senza il prefisso 'vit.'
+        new_state_dict = {}
+        for key in state_dict.keys():
+            new_key = key.replace('vit.', '')  # Rimuovi il prefisso 'vit.'
+            new_state_dict[new_key] = state_dict[key]
+        new_state_dict["pooler.dense.weight"] = new_state_dict.pop("classifier.weight")
+        new_state_dict["pooler.dense.bias"] = new_state_dict.pop("classifier.bias")
+
+        model.load_state_dict(new_state_dict)
+    else:
+        model.load_state_dict(torch.load(f'./saved_models/{args.model}/final_{args.model}_epoch_50.pth'))  # or the best epoch
+
+>>>>>>> Stashed changes
     model = model.to(DEVICE)
 
     # Evaluate the model
