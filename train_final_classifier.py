@@ -66,7 +66,7 @@ if __name__ == '__main__':
         model = MLP(1024,8)
     elif args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
-    elif args.model == 'Transformer':
+    elif args.model == 'TransformerClassifier':
         # Iperparametri
         d_model = 1024
         num_heads = 8
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         epoch_loss = [0.0, 0]
         for i_val,(x, y) in tqdm(enumerate(train_loader)):
             x, y = x.to(DEVICE), y.to(DEVICE)
-            logger.info(f"X: {x[0][0]}")
+            #logger.info(f"X: {x[0][0]}")
             # Category Loss
             #logger.info(f"X: {x.size()}")
 
