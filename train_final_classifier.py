@@ -33,7 +33,7 @@ if __name__ == '__main__':
     ])
 
     # Define the Dataset object for training & testing
-    train_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'train')
+    train_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1",'train')
     #test_dataset = PACSDataset(domain='sketch', transform=dataset_transform)
 
     # Define the DataLoaders
@@ -110,15 +110,8 @@ if __name__ == '__main__':
         #save checkpoint in a file
         if (epoch+1) % 10 == 0:
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
-<<<<<<< Updated upstream
         if (epoch+1) % STEP_SIZE == 0:
             logger.info(f'Current LR: {scheduler.get_last_lr()}')
-    test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
-    test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
-    logger.info(f"Test Dataset Size: {len(test_dataset)}")
-=======
->>>>>>> Stashed changes
-
         
 
 
