@@ -3,7 +3,6 @@ from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
-from torchvision.models import AlexNet_Weights
 import torch.nn.functional as F
 from torchmetrics import Accuracy
 from tqdm import tqdm
@@ -11,8 +10,29 @@ from utils.logger import logger
 from utils.args import args
 from transformers import ViTConfig, ViTForImageClassification 
 
+def evaluate(model, data_loader, device):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for x, y in data_loader:
+            x, y = x.to(device), y.to(device)
+            if args.model == 'Transformer':
+                x = x.view(x.size(0), 1, 32, 32)  # reshape for Transformer model
+            outputs = model(x)
+            if args.model == 'Transformer':
+                outputs = outputs.logits
+            _, predicted = torch.max(outputs, 1)
+            total += y.size(0)
+            correct += (predicted == y).sum().item()
+    accuracy = correct / total
+    return accuracy
+
+
+
+
 if __name__ == '__main__':
-    BATCH_SIZE = 64
+    BATCH_SIZE = 32
     LR = 0.01
     MOMENTUM = 0.9
     WEIGHT_DECAY = 1e-4
@@ -32,13 +52,12 @@ if __name__ == '__main__':
         T.Normalize([0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    # Define the Dataset object for training & testing
     train_dataset = FeaturesDataset(args.features_file,'train')
-    #test_dataset = PACSDataset(domain='sketch', transform=dataset_transform)
+    val_dataset = FeaturesDataset(args.features_file,'test') 
 
     # Define the DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
-    #test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=4, drop_last=False)
     #logger.info(f"Train Dataset Size: {len(train_dataset)}")
 
     #### ARCHITECTURE SETUP
@@ -59,7 +78,10 @@ if __name__ == '__main__':
     else:
         raise ValueError(f"Invalid model: {args.model}")
         
-    #logger.info(f"Model: {model}")
+    logger.info(f"Model: {model}")
+    logger.info(f"len train_dataset: {len(train_dataset)}")
+    logger.info(f"len train_loader: {len(train_loader)}")
+
 
     #### TRAINING SETUP
     # Move model to device before passing it to the optimizer
@@ -73,6 +95,7 @@ if __name__ == '__main__':
     #### TRAINING LOOP
     model.train()
     for epoch in range(NUM_EPOCHS):
+        model.train()
         epoch_loss = [0.0, 0]
         for i_val,(x, y) in tqdm(enumerate(train_loader)):
             x, y = x.to(DEVICE), y.to(DEVICE)
@@ -107,6 +130,11 @@ if __name__ == '__main__':
             
         scheduler.step()
         logger.info(f'[EPOCH {epoch+1}] Avg. Loss: {epoch_loss[0] / epoch_loss[1]}')
+
+        train_accuracy = evaluate(model, train_loader, DEVICE)
+        val_accuracy = evaluate(model, val_loader, DEVICE)
+        logger.info(f'[EPOCH {epoch+1}] Train Accuracy: {train_accuracy}')
+        logger.info(f'[EPOCH {epoch+1}] Val Accuracy: {val_accuracy}')
         #save checkpoint in a file
         if (epoch+1) % 10 == 0:
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')

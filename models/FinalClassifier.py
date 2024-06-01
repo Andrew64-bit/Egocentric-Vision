@@ -5,7 +5,6 @@ from utils.logger import logger
 import torch.optim as optim
 import torch.utils.data as data
 import numpy as np
-from utils.logger import logger
 
 
 
@@ -76,8 +75,8 @@ class LSTMClassifier(nn.Module):
     
     def forward(self, x):
         #x = x.unsqueeze(1)  # Add a dimension for the sequence length
-        logger.info(f"Input Shape: {x.shape}")
-        logger.info(f"x.size(1) = {x.size(1)}")
+        #logger.info(f"Input Shape: {x.shape}")
+        #logger.info(f"x.size(1) = {x.size(1)}")
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         
