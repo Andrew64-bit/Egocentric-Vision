@@ -300,7 +300,7 @@ class FeaturesDataset(data.Dataset):
     def __init__(self, features_file, mode='train'):
 
         # Carica le feature dal file pickle
-        features = pd.read_pickle(features_file)
+        features = pd.read_pickle(features_file+"_"+mode+".pkl")
 
         # Estrai le feature e le etichette
         list_of_features = [np.array(f) for feature in features["features"] for f in feature['features_RGB']]
@@ -312,6 +312,7 @@ class FeaturesDataset(data.Dataset):
         labels_extended = np.array(labels_extended)
 
         # Suddividi i dati in set di addestramento e di test
+        '''
         nTrain = int(len(list_of_features) * 2.0 / 3.0)
         np.random.seed(14)
         idx = np.random.permutation(len(list_of_features))
@@ -327,23 +328,20 @@ class FeaturesDataset(data.Dataset):
 
         logger.info("Training set size:", self.DTR.shape, self.LTR.shape)
         logger.info("Test set size:", self.DTE.shape, self.LTE.shape)
-        
+        '''
         self.mode = mode
-        # firs randomize the order 
-
-        #self.features = torch.tensor([item['features_RGB'] for item in features['features']]).float()
-        #self.labels = df2['narration'].values
-        #self.label_to_index = label_to_index
-        #self.labels = [self.label_to_index[label] for label in self.labels]
+        self.features = list_of_features
+        self.labels = labels_extended
 
     def __len__(self):
+        return len(self.features)
         if self.mode == 'train':
             return len(self.DTR)
         else:
             return len(self.DTE)
-
-
+            
     def __getitem__(self,idx):
+        return self.features[idx], self.labels[idx]
         if self.mode == 'train':
             return self.DTR[idx], self.LTR[idx]
         else:
