@@ -303,47 +303,19 @@ class FeaturesDataset(data.Dataset):
         features = pd.read_pickle(features_file+"_"+mode+".pkl")
 
         # Estrai le feature e le etichette
-        list_of_features = [np.array(f) for feature in features["features"] for f in feature['features_RGB']]
+        list_of_features = [np.array(feature['features_RGB']) for feature in features["features"]]
         labels = [feature['label'] for feature in features["features"]]
-        labels_extended = [label for label in labels for _ in range(5)]
-
         # Converti list_of_features in un array NumPy
         list_of_features = np.array(list_of_features)
-        labels_extended = np.array(labels_extended)
+        labels = np.array(labels)
 
-        # Suddividi i dati in set di addestramento e di test
-        '''
-        nTrain = int(len(list_of_features) * 2.0 / 3.0)
-        np.random.seed(14)
-        idx = np.random.permutation(len(list_of_features))
-        idxTrain = idx[:nTrain]
-        idxTest = idx[nTrain:]
-
-        # Crea i set di addestramento e di test
-        self.DTR = list_of_features[idxTrain]
-        self.DTE = list_of_features[idxTest]
-
-        self.LTR = labels_extended[idxTrain]
-        self.LTE = labels_extended[idxTest]
-
-        logger.info("Training set size:", self.DTR.shape, self.LTR.shape)
-        logger.info("Test set size:", self.DTE.shape, self.LTE.shape)
-        '''
         self.mode = mode
         self.features = list_of_features
-        self.labels = labels_extended
+        self.labels = labels
 
     def __len__(self):
         return len(self.features)
-        if self.mode == 'train':
-            return len(self.DTR)
-        else:
-            return len(self.DTE)
             
     def __getitem__(self,idx):
         return self.features[idx], self.labels[idx]
-        if self.mode == 'train':
-            return self.DTR[idx], self.LTR[idx]
-        else:
-            return self.DTE[idx], self.LTE[idx]
         

@@ -91,7 +91,7 @@ if __name__ == '__main__':
     model = model.to(DEVICE)
 
     # Load the test dataset and DataLoader
-    test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl", 'test')
+    test_dataset = FeaturesDataset(args.features_file, 'test')
     test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
     logger.info(f"Test Dataset Size: {len(test_dataset)}")
 

@@ -75,9 +75,9 @@ class LSTMClassifier(nn.Module):
         self.fc = nn.Linear(hidden_dim, num_class)
     
     def forward(self, x):
-        x = x.unsqueeze(1)  # Add a dimension for the sequence length
-        #logger.info(f"Input Shape: {x.shape}")
-        #logger.info(f"x.size(1) = {x.size(1)}")
+        #x = x.unsqueeze(1)  # Add a dimension for the sequence length
+        logger.info(f"Input Shape: {x.shape}")
+        logger.info(f"x.size(1) = {x.size(1)}")
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         

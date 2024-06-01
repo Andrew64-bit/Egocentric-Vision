@@ -33,7 +33,7 @@ if __name__ == '__main__':
     ])
 
     # Define the Dataset object for training & testing
-    train_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1",'train')
+    train_dataset = FeaturesDataset(args.features_file,'train')
     #test_dataset = PACSDataset(domain='sketch', transform=dataset_transform)
 
     # Define the DataLoaders
