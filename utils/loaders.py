@@ -120,12 +120,15 @@ class EpicKitchensDataset(data.Dataset, ABC):
             
         # --- uniform sampling ---
         else:
-            central_point = np.random.randint(segment_dim, num_frames_record-segment_dim)
-            start_idx = max(0, central_point - segment_dim / 2)
-            # linspace per avere un array di indici equidistanti
-            all_indices += np.linspace(start_idx, start_idx + segment_dim, num=num_frames_per_clip, dtype=int).tolist()
+            average_duration = record.num_frames[modality] // self.num_frames_per_clip[modality]
+            if average_duration > 0:
+                frame_idx = np.multiply(np.arange(self.num_frames_per_clip[modality]), average_duration) + \
+                            np.random.randint(average_duration, size=self.num_frames_per_clip[modality])
+                all_indices = np.tile(frame_idx, self.num_clips)
+            else:
+                all_indices = np.zeros((self.num_frames_per_clip[modality] * self.num_clips,))
 
-
+        return all_indices
 
         # logger.info("----------------------")
         # logger.info(f"num_frames : {num_frames_record}, indeces : {all_indices}")
