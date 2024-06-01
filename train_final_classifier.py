@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -9,7 +9,6 @@ from torchmetrics import Accuracy
 from tqdm import tqdm
 from utils.logger import logger
 from utils.args import args
-from transformers import ViTConfig, ViTForImageClassification 
 
 if __name__ == '__main__':
     BATCH_SIZE = 64
@@ -21,6 +20,7 @@ if __name__ == '__main__':
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
         DEVICE = 'mps'
+        logger.info("------ USING APPLE SILICON GPU ------")
     NUM_EPOCHS = 100   
 
     #### DATA SETUP
@@ -48,12 +48,15 @@ if __name__ == '__main__':
     elif args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
     elif args.model == 'Transformer':
-        # Internal configuration of the ViT model
-        configuration = ViTConfig()
-        configuration.num_channels = 1
-        configuration.image_size = 32
-        configuration.num_labels = 8
-        model = ViTForImageClassification(configuration)
+        # Iperparametri
+        d_model = 1024
+        num_heads = 8
+        num_layers = 4
+        d_ff = 2048
+        max_seq_length = 5  # Numero di clip
+        num_classes = 8
+        dropout = 0.1
+        model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
     else:
@@ -76,7 +79,7 @@ if __name__ == '__main__':
         epoch_loss = [0.0, 0]
         for i_val,(x, y) in tqdm(enumerate(train_loader)):
             x, y = x.to(DEVICE), y.to(DEVICE)
-
+            logger.info(f"X: {x[0][0]}")
             # Category Loss
             #logger.info(f"X: {x.size()}")
 

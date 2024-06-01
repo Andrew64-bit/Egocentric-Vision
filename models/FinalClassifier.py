@@ -85,3 +85,50 @@ class LSTMClassifier(nn.Module):
         out = out[:, -1, :]  # Prendere l'output del ultimo timestep
         out = self.fc(out)
         return out
+    
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_seq_length):
+        super(PositionalEncoding, self).__init__()
+        
+        pe = torch.zeros(max_seq_length, d_model)
+        position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
+        
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        
+        self.register_buffer('pe', pe.unsqueeze(0))
+        
+    def forward(self, x):
+        x = x + self.pe[:, :x.size(1)]
+        return x
+
+class TransformerClassifier(nn.Module):
+    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout=0.1):
+        super(TransformerClassifier, self).__init__()
+        self.d_model = d_model
+        self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+        
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        
+        self.fc = nn.Linear(d_model, num_classes)
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x):
+        # x.shape: (batch_size, num_clips, d_model)
+        x = self.positional_encoding(x)
+        
+        # Permuta per adattare alla forma attesa dal Transformer Encoder
+        x = x.permute(1, 0, 2)  # (num_clips, batch_size, d_model)
+        
+        # Passa attraverso il Transformer Encoder
+        transformer_out = self.transformer_encoder(x)
+        
+        # Media le uscite del Transformer per ogni clip
+        transformer_out = transformer_out.mean(dim=0)  # (batch_size, d_model)
+        
+        # Passa attraverso il livello finale di classificazione
+        output = self.fc(self.dropout(transformer_out))  # (batch_size, num_classes)
+        
+        return output
