@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier, TRNClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -78,6 +78,8 @@ if __name__ == '__main__':
         model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
+    elif args.model == 'TRNClassifier':
+        model = TRNClassifier()
     else:
         raise ValueError(f"Invalid model: {args.model}")
         
@@ -134,12 +136,13 @@ if __name__ == '__main__':
         scheduler.step()
         logger.info(f'[EPOCH {epoch+1}] Avg. Loss: {epoch_loss[0] / epoch_loss[1]}')
 
-        train_accuracy = evaluate(model, train_loader, DEVICE)
-        val_accuracy = evaluate(model, val_loader, DEVICE)
-        logger.info(f'[EPOCH {epoch+1}] Train Accuracy: {train_accuracy}')
-        logger.info(f'[EPOCH {epoch+1}] Val Accuracy: {val_accuracy}')
+
         #save checkpoint in a file
         if (epoch+1) % 10 == 0:
+            train_accuracy = evaluate(model, train_loader, DEVICE)
+            val_accuracy = evaluate(model, val_loader, DEVICE)
+            logger.info(f'[EPOCH {epoch+1}] Train Accuracy: {train_accuracy}')
+            logger.info(f'[EPOCH {epoch+1}] Val Accuracy: {val_accuracy}')
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
         if (epoch+1) % STEP_SIZE == 0:
             logger.info(f'Current LR: {scheduler.get_last_lr()}')

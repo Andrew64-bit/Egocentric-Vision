@@ -1,9 +1,8 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TRN_classifier, TransformerClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier, TRNClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
-from torchvision.models import AlexNet_Weights
 import torch.nn.functional as F
 from torchmetrics import Accuracy
 from tqdm import tqdm
@@ -76,10 +75,10 @@ if __name__ == '__main__':
         num_classes = 8
         dropout = 0.1
         model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
-
-
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
+    elif args.model == 'TRNClassifier':
+        model = TRNClassifier()
     else:
         raise ValueError(f"Invalid model: {args.model}")
     
@@ -95,7 +94,7 @@ if __name__ == '__main__':
     logger.info(f"Test Dataset Size: {len(test_dataset)}")
 
     # Load the best model checkpoint
-    model.load_state_dict(torch.load(f'./saved_models/{args.model}/final_{args.model}_epoch_50.pth'))  # or the best epoch
+    model.load_state_dict(torch.load(f'./saved_models/{args.model}/final_{args.model}_epoch_{args.epoch}.pth'))  # or the best epoch
     model = model.to(DEVICE)
 
     # Evaluate the model

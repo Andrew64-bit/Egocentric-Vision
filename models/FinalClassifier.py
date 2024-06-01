@@ -66,16 +66,17 @@ class MLPWithDropout(nn.Module):
         return output
 
 class LSTMClassifier(nn.Module):
-    def __init__(self, input_dim, num_class, hidden_dim = 128, num_layers = 2):
+    def __init__(self, input_dim, num_class, hidden_dim = 128, num_layers = 1, dropout = 0.5):
         super(LSTMClassifier, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout)
+        self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim, num_class)
     
     def forward(self, x):
-        #x = x.unsqueeze(1)  # Add a dimension for the sequence length
         #logger.info(f"Input Shape: {x.shape}")
         #logger.info(f"x.size(1) = {x.size(1)}")
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
@@ -83,6 +84,7 @@ class LSTMClassifier(nn.Module):
         
         out, _ = self.lstm(x, (h0, c0))
         out = out[:, -1, :]  # Prendere l'output del ultimo timestep
+        out = self.dropout(out)
         out = self.fc(out)
         return out
     
@@ -132,3 +134,56 @@ class TransformerClassifier(nn.Module):
         output = self.fc(self.dropout(transformer_out))  # (batch_size, num_classes)
         
         return output
+
+
+
+class TRNClassifier(nn.Module):
+    def __init__(self, clip_feature_dim = 1024, num_clips = 5, num_class = 8, dropout = 0.5):
+        super(TRNClassifier, self).__init__()
+        self.subsample_num = 3
+        self.clip_feature_dim = clip_feature_dim
+        self.num_clips = num_clips
+        self.scales = [i for i in range(num_clips, 1, -1)]  # Multi-scale frame relations
+
+        self.relations_scales = []
+        self.subsample_scales = []
+        for scale in self.scales:
+            relations_scale = self.return_relationset(num_clips, scale)
+            self.relations_scales.append(relations_scale)
+            self.subsample_scales.append(min(self.subsample_num, len(relations_scale)))
+
+        self.num_class = num_class
+        num_bottleneck = 256
+        self.fc_fusion_scales = nn.ModuleList()
+        self.dropout = nn.Dropout(dropout)
+        for i in range(len(self.scales)):
+            scale = self.scales[i]
+            fc_fusion = nn.Sequential(
+                nn.ReLU(),
+                nn.Linear(scale * self.clip_feature_dim, num_bottleneck),
+                nn.ReLU(),
+                self.dropout,
+                nn.Linear(num_bottleneck, self.num_class),
+            )
+
+            self.fc_fusion_scales.append(fc_fusion)
+
+        print('Multi-Scale Temporal Relation Network Module in use', ['%d-clip relation' % i for i in self.scales])
+
+    def forward(self, input):
+        act_all = input[:, self.relations_scales[0][0], :]
+        act_all = act_all.view(act_all.size(0), self.scales[0] * self.clip_feature_dim)
+        act_all = self.fc_fusion_scales[0](act_all)
+
+        for scaleID in range(1, len(self.scales)):
+            idx_relations_randomsample = np.random.choice(len(self.relations_scales[scaleID]), self.subsample_scales[scaleID], replace=False)
+            for idx in idx_relations_randomsample:
+                act_relation = input[:, self.relations_scales[scaleID][idx], :]
+                act_relation = act_relation.view(act_relation.size(0), self.scales[scaleID] * self.clip_feature_dim)
+                act_relation = self.fc_fusion_scales[scaleID](act_relation)
+                act_all += act_relation
+        return act_all
+
+    def return_relationset(self, num_clips, num_clips_relation):
+        import itertools
+        return list(itertools.combinations([i for i in range(num_clips)], num_clips_relation))
