@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TRN_classifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -12,8 +12,8 @@ from utils.args import args
 from transformers import ViTConfig, ViTForImageClassification 
 
 if __name__ == '__main__':
-    BATCH_SIZE = 64
-    LR = 0.01
+    BATCH_SIZE = 32
+    LR = 0.1
     MOMENTUM = 0.9
     WEIGHT_DECAY = 1e-4
     STEP_SIZE = 10
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
         DEVICE = 'mps'
-    NUM_EPOCHS = 100   
+    NUM_EPOCHS = 50 
 
     #### DATA SETUP
     # Define the transforms to use on images
@@ -45,6 +45,8 @@ if __name__ == '__main__':
     # Create the Network Architecture object
     if args.model == 'MLP':
         model = MLP(1024,8)
+    elif args.model == 'TRN':
+        model = TRN_classifier()
     elif args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
     elif args.model == 'Transformer':
@@ -53,6 +55,10 @@ if __name__ == '__main__':
         configuration.num_channels = 1
         configuration.image_size = 32
         configuration.num_labels = 8
+        configuration.hidden_size = 256
+        configuration.intermediate_size = 512
+        configuration.num_attention_heads = 4
+        configuration.num_hidden_layers = 4
         model = ViTForImageClassification(configuration)
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
@@ -110,14 +116,8 @@ if __name__ == '__main__':
         #save checkpoint in a file
         if (epoch+1) % 10 == 0:
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
-<<<<<<< Updated upstream
         if (epoch+1) % STEP_SIZE == 0:
             logger.info(f'Current LR: {scheduler.get_last_lr()}')
-    test_dataset = FeaturesDataset("./saved_features/saved_feat_I3D_10_dense_D1_test.pkl",'test')
-    test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4)
-    logger.info(f"Test Dataset Size: {len(test_dataset)}")
-=======
->>>>>>> Stashed changes
 
         
 

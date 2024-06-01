@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from utils.logger import logger
 import torch.optim as optim
 import torch.utils.data as data
+import numpy as np
+from utils.logger import logger
 
 
 
@@ -83,4 +85,3 @@ class LSTMClassifier(nn.Module):
         out = out[:, -1, :]  # Prendere l'output del ultimo timestep
         out = self.fc(out)
         return out
-    
