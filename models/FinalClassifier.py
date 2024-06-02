@@ -62,7 +62,10 @@ class MLPWithDropout(nn.Module):
         return classifier
     
     def forward(self, input):
-        output = self.classifier(input)
+        # input.shape: (batch_size, num_clips, clip_feature_dim)
+        # Apply average pooling over the clips
+        pooled_input = torch.mean(input, dim=1)  # shape: (batch_size, clip_feature_dim)
+        output = self.classifier(pooled_input)
         return output
 
 class LSTMClassifier(nn.Module):
@@ -112,7 +115,8 @@ class TransformerClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         
-        self.fc = nn.Linear(d_model, num_classes)
+        self.fc = nn.Linear(d_model, 512)
+        self.fc2 = nn.Linear(512, num_classes)
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
@@ -127,6 +131,43 @@ class TransformerClassifier(nn.Module):
         
         # Media le uscite del Transformer per ogni clip
         transformer_out = transformer_out.mean(dim=0)  # (batch_size, d_model)
+        
+        # Passa attraverso il livello finale di classificazione
+        output = self.fc(self.dropout(transformer_out))  # (batch_size, num_classes)
+
+        output = self.fc2(output)
+        
+        return output
+    
+class LSTMTransformerClassifier(nn.Module):
+    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout=0.1):
+        super(LSTMTransformerClassifier, self).__init__()
+        self.d_model = d_model
+        self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+        
+        self.lstm = nn.LSTM(input_size=d_model, hidden_size=256, num_layers=1, batch_first=True)
+        
+        encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        
+        self.fc = nn.Linear(256, num_classes)
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x):
+        # x.shape: (batch_size, num_clips, d_model)
+        x = self.positional_encoding(x)
+        
+        # Passa attraverso LSTM
+        lstm_out, _ = self.lstm(x)
+        
+        # Permuta per adattare alla forma attesa dal Transformer Encoder
+        lstm_out = lstm_out.permute(1, 0, 2)  # (num_clips, batch_size, d_model*2)
+        
+        # Passa attraverso il Transformer Encoder
+        transformer_out = self.transformer_encoder(lstm_out)
+        
+        # Media le uscite del Transformer per ogni clip
+        transformer_out = transformer_out.mean(dim=0)  # (batch_size, d_model*2)
         
         # Passa attraverso il livello finale di classificazione
         output = self.fc(self.dropout(transformer_out))  # (batch_size, num_classes)
