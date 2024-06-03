@@ -3,7 +3,7 @@ from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
-import torch.nn.functional as F
+from torch import nn
 from torchmetrics import Accuracy
 from tqdm import tqdm
 from utils.logger import logger
@@ -32,7 +32,7 @@ def evaluate(model, data_loader, device):
 
 if __name__ == '__main__':
     BATCH_SIZE = 32
-    LR = 0.01
+    LR = 0.0001
     MOMENTUM = 0.9
     WEIGHT_DECAY = 1e-4
     STEP_SIZE = 10
@@ -72,10 +72,22 @@ if __name__ == '__main__':
         num_heads = 8
         num_layers = 4
         d_ff = 2048
+        max_seq_length = 5
+        num_classes = 8
+        dropout = 0.3
+        model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
+    elif args.model == "LSTMTransformerClassifier":
+        # Iperparametri
+        d_model = 1024
+        num_heads = 8
+        num_layers = 6
+        d_ff = 512
         max_seq_length = 5  # Numero di clip
         num_classes = 8
         dropout = 0.1
-        model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
+
+        # Creazione del modello
+        model = LSTMTransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
     elif args.model == 'TRNClassifier':
@@ -121,8 +133,9 @@ if __name__ == '__main__':
 
             if args.model == 'Transformer':
                 outputs = outputs.logits
-
-            loss = F.cross_entropy(outputs, y.long())
+                
+            criterion = nn.CrossEntropyLoss()
+            loss = criterion(outputs, y.long())
 
             optimizer.zero_grad()
             loss.backward()
