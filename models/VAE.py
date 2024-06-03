@@ -1,49 +1,74 @@
 import torch
-import numpy as np
 import torch.nn as nn
+from torch.autograd import Variable
 
-class VAE(nn.Module):
+class FC_VAE(nn.Module):
+    """Fully connected variational Autoencoder"""
+    def __init__(self, n_input, nz, n_hidden=1024):
+        super(FC_VAE, self).__init__()
+        self.nz = nz
+        self.n_input = n_input
+        self.n_hidden = n_hidden
 
-    def __init__(self, device, input_dim=784, hidden_dim=400, latent_dim=200):
-        super(VAE, self).__init__()
-        self.device = device
-        # encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.LeakyReLU(0.2),
-            nn.Linear(hidden_dim, latent_dim),
-            nn.LeakyReLU(0.2)
-            )
-        
-        # latent mean and variance 
-        self.mean_layer = nn.Linear(latent_dim, 2)
-        self.logvar_layer = nn.Linear(latent_dim, 2)
-        
-        # decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(2, latent_dim),
-            nn.LeakyReLU(0.2),
-            nn.Linear(latent_dim, hidden_dim),
-            nn.LeakyReLU(0.2),
-            nn.Linear(hidden_dim, input_dim),
-            nn.Sigmoid()
-            )
-     
-    def encode(self, x):
-        x = self.encoder(x)
-        mean, logvar = self.mean_layer(x), self.logvar_layer(x)
-        return mean, logvar
+        self.encoder = nn.Sequential(nn.Linear(n_input, n_hidden),
+                                nn.ReLU(inplace=True),
+                                nn.BatchNorm1d(n_hidden),
+                                nn.Linear(n_hidden, n_hidden),
+                                nn.BatchNorm1d(n_hidden),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(n_hidden, n_hidden),
+                                nn.BatchNorm1d(n_hidden),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(n_hidden, n_hidden),
+                                nn.BatchNorm1d(n_hidden),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(n_hidden, n_hidden),
+                                )
 
-    def reparameterization(self, mean, var):
-        epsilon = torch.randn_like(var).to(self.device)      
-        z = mean + var*epsilon
-        return z
+        self.fc1 = nn.Linear(n_hidden, nz)
+        self.fc2 = nn.Linear(n_hidden, nz)
 
-    def decode(self, x):
-        return self.decoder(x)
-
+        self.decoder = nn.Sequential(nn.Linear(nz, n_hidden),
+                                     nn.ReLU(inplace=True),
+                                     nn.BatchNorm1d(n_hidden),
+                                     nn.Linear(n_hidden, n_hidden),
+                                     nn.BatchNorm1d(n_hidden),
+                                     nn.ReLU(inplace=True),
+                                     nn.Linear(n_hidden, n_hidden),
+                                     nn.BatchNorm1d(n_hidden),
+                                     nn.ReLU(inplace=True),
+                                     nn.Linear(n_hidden, n_hidden),
+                                     nn.BatchNorm1d(n_hidden),
+                                     nn.ReLU(inplace=True),
+                                     nn.Linear(n_hidden, n_input),
+                                    )
     def forward(self, x):
-        mean, logvar = self.encode(x)
-        z = self.reparameterization(mean, logvar)
-        x_hat = self.decode(z)
-        return x_hat, mean, logvar
+        mu, logvar = self.encode(x)
+        z = self.reparametrize(mu, logvar)
+        res = self.decode(z)
+        return res, z, mu, logvar
+
+    def encode(self, x):
+        h = self.encoder(x)
+        return self.fc1(h), self.fc2(h)
+
+    def reparametrize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        if torch.cuda.is_available():
+            eps = torch.cuda.FloatTensor(std.size()).normal_()
+        else:
+            eps = torch.FloatTensor(std.size()).normal_()
+        eps = Variable(eps)
+        return eps.mul(std).add_(mu)
+    
+    def decode(self, z):
+        return self.decoder(z)
+
+    def get_latent_var(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparametrize(mu, logvar)
+        return z
+ 
+    def generate(self, z):
+        res = self.decode(z)
+        return res
