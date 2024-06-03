@@ -155,14 +155,13 @@ class TRNClassifier(nn.Module):
         self.num_class = num_class
         num_bottleneck = 256
         self.fc_fusion_scales = nn.ModuleList()
-        self.dropout = nn.Dropout(dropout)
         for i in range(len(self.scales)):
             scale = self.scales[i]
             fc_fusion = nn.Sequential(
                 nn.ReLU(),
                 nn.Linear(scale * self.clip_feature_dim, num_bottleneck),
                 nn.ReLU(),
-                self.dropout,
+                nn.Dropout(dropout),
                 nn.Linear(num_bottleneck, self.num_class),
             )
 
