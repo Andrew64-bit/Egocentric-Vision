@@ -318,4 +318,30 @@ class FeaturesDataset(data.Dataset):
             
     def __getitem__(self,idx):
         return self.features[idx], self.labels[idx]
+    
+class FeaturesExtendedDataset(data.Dataset):
+
+    def __init__(self, features_file, mode='train'):
+
+        # Carica le feature dal file pickle
+        features = pd.read_pickle(features_file+"_"+mode+".pkl")
+
+        # Estrai le feature e le etichette
+        list_of_features = [np.array(f) for feature in features["features"] for f in feature['features_RGB']]
+        labels = [feature['label'] for feature in features["features"]]
+        labels_extended = [label for label in labels for _ in range(5)]
+        # Converti list_of_features in un array NumPy
+        list_of_features = np.array(list_of_features)
+        labels = np.array(labels_extended)
+
+
+        self.mode = mode
+        self.features = list_of_features
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.features)
+            
+    def __getitem__(self,idx):
+        return self.features[idx], self.labels[idx]
         

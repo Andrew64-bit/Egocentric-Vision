@@ -1,14 +1,15 @@
-from models.VAE import VAE
+from models.VAE import FC_VAE
 from torch.optim import Adam
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from utils.logger import logger
+from utils.logger import setup_logger
 from tqdm import tqdm
 from utils.args import args
+import numpy as np
 
 def loss_function(recon_x, x, mu, logvar):
-    lamb = 0.0000001
+    lamb = 0.001
     MSE = nn.MSELoss()
     lloss = MSE(recon_x,x)
 
@@ -19,31 +20,66 @@ def loss_function(recon_x, x, mu, logvar):
     return lloss
 
 def train(model, optimizer, epochs, device, train_loader_rgb, train_loader_emg, batch_size, scheduler):
+    logger = setup_logger("LOG", "00_log_training_VAE")
+
     model.train()
+    # reset parameter gradients
+    model.zero_grad()
 
     for epoch in range(epochs):
         overall_loss = 0
 
         for (rgb_batch_idx, (rgb_x, _)), (emg_batch_idx, (emg_x, _)) in tqdm(zip(enumerate(train_loader_rgb), enumerate(train_loader_emg))):
-            
+            # print(f"Input size: {rgb_x.size()}")
             inputs = Variable(rgb_x)
-            inputs.to(device)
+            inputs = inputs.to(device)
+            # print(f'DEVICE used: {device}')
+            # print(f'Input: {inputs.device}')
 
             targets = Variable(emg_x)
-            targets.to(device)
+            targets = targets.to(device)
 
             optimizer.zero_grad()
 
             reconstructed_target, latents, mu, logvar = model(inputs)
             loss = loss_function(reconstructed_target, targets, mu, logvar)
-            train_loss += loss.data.item() * inputs.size(0)
+            overall_loss += loss.data.item() * inputs.size(0)
             
             
             loss.backward()
             optimizer.step()
 
         scheduler.step()
-        logger.info("\tEpoch", epoch + 1, "\tAverage Loss: ", overall_loss/(rgb_batch_idx*batch_size))
+        logger.info(f"\tEpoch, {epoch + 1}, \tAverage Loss: , {overall_loss/(rgb_batch_idx*batch_size)}")
+
+
+# Funzione di valutazione
+def evaluate(model, device, test_loader_rgb, test_loader_emg):
+    logger = setup_logger("LOG", "00_log_evaluation_VAE")
+    model.eval()
+    test_loss = 0
+    all_reconstructed = []
+    all_original = []
+    
+    with torch.no_grad():
+        for (rgb_batch_idx, (rgb_x, _)), (emg_batch_idx, (emg_x, _)) in tqdm(zip(enumerate(test_loader_rgb), enumerate(test_loader_emg))):
+            
+            inputs = Variable(rgb_x).to(device)
+            reconstructed, z, mu, logvar = model(inputs)
+            
+            loss = loss_function(reconstructed, inputs, mu, logvar)
+            test_loss += loss.item()
+            
+            all_reconstructed.append(reconstructed.cpu().numpy())
+            all_original.append(inputs.cpu().numpy())
+    
+    test_loss /= len(test_loader_rgb.dataset)
+    print(f'Test Loss: {test_loss:.4f}')
+    
+    all_reconstructed = np.concatenate(all_reconstructed, axis=0)
+    all_original = np.concatenate(all_original, axis=0)
+    
+    return all_reconstructed, all_original
 
 
 if __name__ == '__main__':
@@ -52,7 +88,7 @@ if __name__ == '__main__':
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
         DEVICE = 'mps'
-        logger.info("------ USING APPLE SILICON GPU ------")
+        #logger.info("------ USING APPLE SILICON GPU ------")
 
     # -------HYPERPARAMETERS------
     BATCH_SIZE = 32
@@ -69,7 +105,7 @@ if __name__ == '__main__':
     train_loader_rgb = []
     train_loader_emg = []
 
-    model = VAE().to(DEVICE)
+    model = FC_VAE(dim_input=1024, nz=64).to(DEVICE)
 
     # Create Optimizer & Scheduler objects
     optimizer = Adam(model.parameters(), lr=LR, betas=(0.9, 0.98), eps=1e-9)

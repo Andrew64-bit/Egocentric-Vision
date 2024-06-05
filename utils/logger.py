@@ -25,4 +25,5 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 
 sys.excepthook = handle_exception
+# if args.logfile is not defined
 logger = setup_logger("LOG", args.logfile)
