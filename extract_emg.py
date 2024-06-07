@@ -118,8 +118,7 @@ def read_activity_data(
 
 def process_activities(
     activities,
-    times,
-    exclude_bad = True
+    times
 ):
     """
     Process activity data to combine start/stop entries and exclude bad labels if specified.
@@ -128,9 +127,6 @@ def process_activities(
     processed_activities = []
 
     for i, (label, start_stop, validity, notes) in enumerate(activities):
-
-        if exclude_bad and validity in ['Bad', 'Maybe']:
-            continue
 
         if start_stop == 'Start':
 
