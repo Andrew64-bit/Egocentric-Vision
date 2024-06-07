@@ -375,7 +375,7 @@ class ActionNetEmgDataset(data.Dataset, ABC):
             index = np.array(subject['index']) - 1
             file_path = os.path.join(data_dir, f)
             df = pd.read_pickle(file_path)
-            print(index)
+            #print(index)
             df_idx = df.iloc[index]
             for (_,action) in df_idx.iterrows():
                 descr = action['description']
@@ -514,10 +514,11 @@ class ActionNetEmgDataset(data.Dataset, ABC):
         else:
             # here the testing indexes are obtained with no randomization, i.e., centered
             segment_indices = self._get_val_indices(record)
-    
+
+        #print(segment_indices)
 
         emgs, label = self.get(record, segment_indices)
-    
+        emgs = np.array(emgs)
         #logger.info(f"------------------------------segment_indices(size = {len(segment_indices['RGB'])})------------------------------\n{segment_indices}\n------------------------------frames(size = {frames['RGB'].shape})------------------------------\n{frames['RGB'][0]}")
 
 
