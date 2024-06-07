@@ -4,3 +4,4 @@ from models.FinalClassifier import MLP,MLPWithDropout, LSTMClassifier, Transform
 from models.VAE import FC_VAE
 from models.LSTM_embeddings import LSTM_Emb_Classifier
 from models.EMG_Feature_Extractor import EMG_Feature_Extractor
+
