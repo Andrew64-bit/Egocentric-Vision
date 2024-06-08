@@ -3,12 +3,17 @@ from abc import ABC
 import pandas as pd
 from .epic_record import EpicVideoRecord
 from .actionNet_emg_record import ActionNetVideoEmgRecord
+from .actionNet_emg_rgb_record import ActionNetVideoEmgRgbRecord
 import torch.utils.data as data
 from PIL import Image
 import os
 import os.path
 from utils.logger import logger
 import numpy as np
+
+
+#-------------------------------------------------------only RGB-------------------------------------------------------------------------#
+
 
 class EpicKitchensDataset(data.Dataset, ABC):
     def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
@@ -341,6 +346,7 @@ class FeaturesExtendedDataset(data.Dataset):
     def __getitem__(self,idx):
         return self.features[idx], self.labels[idx]
         
+#-------------------------------------------------------only EMG-------------------------------------------------------------------------#
 
 
 class ActionNetEmgDataset(data.Dataset, ABC):
@@ -539,5 +545,233 @@ class ActionNetEmgDataset(data.Dataset, ABC):
         return emgs, record.label
 
 
+    def __len__(self):
+        return len(self.video_list)
+    
+
+
+
+#-------------------------------------------------------EMG + RGB-------------------------------------------------------------------------#
+
+
+
+class ActionNetEmgRgbDataset(data.Dataset, ABC):
+    def __init__(self, mode, num_frames_per_clip, num_clips, dense_sampling, annotations_dir, data_dir, frame_dir, stride, transform=None, **kwargs):
+
+        """
+        mode: str (train, test/val)
+        num_frames_per_clip: dict(modality: int)
+        num_clips: int
+        dense_sampling: dict(modality: bool)
+        """
+        self.mode = mode  # 'train', 'val' or 'test'
+        self.num_frames_per_clip = num_frames_per_clip
+        self.dense_sampling = dense_sampling
+        self.num_clips = num_clips
+        self.stride = stride
+        self.transform = transform  # pipeline of transforms
+        self.additional_info = False
+        self.frame_dir = frame_dir
+        if self.mode == "train":
+            pickle_name = "ActionNet_train.pkl"
+        else:
+            pickle_name = "ActionNet_test.pkl"
+
+        list_action = pd.read_pickle(os.path.join(annotations_dir, pickle_name))
+        #logger.info(f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated")
+        # A single EpicVideoRecord is a single clip,
+        # example of tup is :
+        file = ['S00_2.pkl' ,'S01_1.pkl', 'S02_2.pkl', 'S02_3.pkl', 'S02_4.pkl', 'S03_1.pkl', 'S03_2.pkl', 'S04_1.pkl', 'S05_2.pkl', 'S06_1.pkl', 'S06_2.pkl', 'S07_1.pkl', 'S08_1.pkl', 'S09_2.pkl']
+        self.video_list = []
+        for f in file:
+            subject = list_action[list_action['file'] == f]
+            index = np.array(subject['index']) - 1
+            file_path = os.path.join(data_dir, f)
+            df = pd.read_pickle(file_path)
+            #print(index)
+            df_idx = df.iloc[index]
+            for (_,action) in df_idx.iterrows():
+                descr = action['description']
+                label = action['description_class']
+                #start = action['start_time']
+                #end = action['end_time']
+                for el in action['emg_data']:
+                    sample = ActionNetVideoEmgRecord(descr,label, el)
+                    self.video_list.append(sample)
+
+        rgb = pd.read_pickle(os.path.join(self.frame_dir, "timestamps.pkl"))
+        self.video_list = [sample.combine_emg_rgb(rgb) for sample in self.video_list]
+
+
+        #mappa_filtrata =list(zip(self.list_file["narration"][283:287],self.list_file["verb"][283:287],self.list_file["verb_class"][283:287]))
+        #logger.info(mappa_filtrata)
+
+
+    def _get_train_indices(self, record):
+        ##################################################################
+        # TODO: implement sampling for training mode                     #
+        # Give the record and the modality, this function should return  #
+        # a list of integers representing the frames to be selected from #
+        # the video clip.                                                #
+        # Remember that the returned array should have size              #
+        #           num_clip x num_frames_per_clip                       #
+        ##################################################################
+
+        num_frames_record = record.size #100
+        num_frames_per_clip = self.num_frames_per_clip #20
+        num_clips = self.num_clips #5
+        stride = self.stride
+
+        # offset da sommare ad ogni index per centrare la clip
+        centroid_offset = num_frames_record / num_clips / 2 - ( num_frames_per_clip * stride / 2 )
+        segment_dim = num_frames_record / num_clips
+
+        all_indices = []
+
+        # --- dense sampling ---
+        if self.dense_sampling:
+            for _ in range(num_clips):
+                # prende un punto centrale randomico assicurandosi un certo offset dall'inizio e dalla fine
+                central_point = np.random.randint(centroid_offset, num_frames_record-centroid_offset)
+                # starting index of the clip, 0 in case of negative values
+                start_idx = max(0, central_point - num_frames_per_clip * stride / 2)
+                indices = [(idx * stride + start_idx) % num_frames_record for idx in range(num_frames_per_clip)]
+                indices.sort()
+                all_indices += indices            
+            
+        # --- uniform sampling ---
+        else:
+            average_duration = num_frames_record // self.num_frames_per_clip
+            if average_duration > 0:
+                frame_idx = np.multiply(np.arange(self.num_frames_per_clip), average_duration) + \
+                            np.random.randint(average_duration, size=self.num_frames_per_clip)
+                all_indices = np.tile(frame_idx, self.num_clips)
+            else:
+                all_indices = np.zeros((self.num_frames_per_clip * self.num_clips,))
+
+        return all_indices
+
+        # logger.info("----------------------")
+        # logger.info(f"num_frames : {num_frames_record}, indeces : {all_indices}")
+        # logger.info("----------------------")
+
+
+    def _get_val_indices(self, record):
+        ##################################################################
+        # TODO: implement sampling for testing mode                      #
+        # Give the record and the modality, this function should return  #
+        # a list of integers representing the frames to be selected from #
+        # the video clip.                                                #
+        # Remember that the returned array should have size              #
+        #           num_clip x num_frames_per_clip                       #
+        ##################################################################
+        
+        num_frames_record = record.size #100
+        num_frames_per_clip = self.num_frames_per_clip #20
+        num_clips = self.num_clips #5
+        stride = self.stride
+
+        # offset da sommare ad ogni index per centrare la clip
+        centroid_offset = num_frames_record / num_clips / 2 - ( num_frames_per_clip * stride / 2 )
+        segment_dim = num_frames_record / num_clips
+
+        all_indices = []
+
+        # --- dense sampling ---
+        if self.dense_sampling:
+            #logger.info("___________________________________________________DENSE SAMPLING___________________________________________________")
+            # prende il max index possibile per far stare la clip
+            max_idx = max(0, num_frames_record - segment_dim)
+            
+            # indici iniziali di ogni segmento centrati al centroide del segmento
+            clips_start_idx = np.linspace(0, max_idx, num=num_clips, dtype=float)
+            segment_dim = clips_start_idx[1]
+            # caso in cui i segmenti non si overlappano, centralizza il segmento
+            if segment_dim > num_frames_per_clip*stride:
+                clips_start_idx += centroid_offset
+
+            for start_idx in clips_start_idx:
+                indices = [(idx * stride +start_idx) % num_frames_record for idx in range(num_frames_per_clip)]
+                indices.sort()
+                all_indices += indices
+
+        # --- uniform sampling ---
+        else:
+            #logger.info("___________________________________________________UNIFORM SAMPLING___________________________________________________")
+
+            # prende il max index possibile per far stare la clip
+            max_idx = max(0, num_frames_record - segment_dim)
+            # indici iniziali di ogni segmento centrati al centroide del segmento
+            clips_start_idx = np.linspace(0, max_idx, num=num_clips, dtype=int)
+            segment_dim = clips_start_idx[1]
+            for start_idx in clips_start_idx:
+                all_indices += np.linspace(start_idx, start_idx + segment_dim, num=num_frames_per_clip, dtype=int).tolist()
+
+
+
+        # logger.info("----------------------")
+        # logger.info(f"num_frames : {num_frames_record}, indeces : {all_indices}")
+        # logger.info("----------------------")
+        
+        return all_indices
+
+    # item si riferisce alla singola clip
+    def __getitem__(self, index):
+
+        label = None
+        # record is a row of the pkl file containing one sample/action
+        # notice that it is already converted into a EpicVideoRecord object so that here you can access
+        # all the properties of the sample easily
+        record = self.video_list[index]
+        if self.mode == "train":
+            # here the training indexes are obtained with some randomization
+            segment_indices = self._get_train_indices(record)
+        else:
+            # here the testing indexes are obtained with no randomization, i.e., centered
+            segment_indices = self._get_val_indices(record)
+
+        #print(segment_indices)
+
+        emgs, images, label = self.get(record, segment_indices)
+        emgs = np.array(emgs)
+        #logger.info(f"------------------------------segment_indices(size = {len(segment_indices['RGB'])})------------------------------\n{segment_indices}\n------------------------------frames(size = {frames['RGB'].shape})------------------------------\n{frames['RGB'][0]}")
+
+
+        if self.additional_info:
+            return emgs, images, label, record.description, record.size
+        else:
+            return emgs, images, label
+
+    def get(self, record, indices):
+        emgs = list()
+        images = list()
+        for frame_index in indices:
+            p = int(frame_index)
+            # here the frame is loaded in memory
+            emg, frame_name = record.get_emg_rgb(p)
+            emgs.extend(emg)
+                
+            frame = self._load_data(frame_name)
+            images.extend(frame)
+        # finally, all the transformations are applied
+        # process_data = self.transform[modality](emgs)
+        process_data = self.transform(images)
+        return emgs, process_data, record.label
+
+    def _load_data(self, frame_name):
+        data_path = self.frame_dir
+        # here the offset for the starting index of the sample is added
+        idx_untrimmed = frame_name
+        formatted_str = "frame_%010d.jpg" % idx_untrimmed
+
+        try:
+            img = Image.open(os.path.join(data_path, formatted_str)) \
+                .convert('RGB')
+        except FileNotFoundError:
+            print("Img not found")
+            raise FileNotFoundError
+        return [img]
+
+        
     def __len__(self):
         return len(self.video_list)
