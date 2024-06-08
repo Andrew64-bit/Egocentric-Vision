@@ -96,7 +96,7 @@ def save_feat(model, loader, device, it, num_classes):
         for i_val, (data, label, video_name, uid) in enumerate(loader):
             label = label.to(device)
             #NOTA BENE:  data rappresenta in questo caso una parte di video(stessa label) divisa
-            # in 5 clip e ogni clip ha 3 diverse augmentation
+            # in 5 clip 
 
             for m in modalities:
                 batch, _, height, width = data[m].shape
