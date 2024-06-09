@@ -1,44 +1,44 @@
 import numpy as np
 from scipy.stats import kurtosis, skew
 from statsmodels.tsa.ar_model import AutoReg
+import torch
 
 def EMG_Feature_Extractor(segment):
     features = []
     # Integrated EMG (IEMG)
-    IEMG = np.sum(np.abs(segment), axis=0)
+    print(f"Segment Shape: {segment.shape}")    
+    IEMG = torch.sum(torch.abs(segment), dim=0).to(segment.device)
+    print(f"IEMG: {IEMG.shape}")
     features.append(IEMG)
     
     # Mean Squared Value (MSV)
-    MSV = np.mean(segment**2, axis=0)
+    MSV = torch.mean(segment**2, dim=0).to(segment.device)
+    print(f"MSV: {MSV.shape}")
     features.append(MSV)
-    
+
     # Variance
-    VAR = np.var(segment, axis=0)
+    VAR = torch.var(segment, dim=0).to(segment.device)
+    print(f"VAR: {VAR.shape}")
     features.append(VAR)
-    
+
     # Root Mean Square (RMS)
-    RMS = np.sqrt(MSV)
+    RMS = torch.sqrt(MSV).to(segment.device)
     features.append(RMS)
-    
+
     # ln RMS
-    ln_RMS = np.log(RMS + 1e-8)  # Aggiungi un piccolo valore per evitare log(0)
+    ln_RMS = torch.log(RMS + 1e-8).to(segment.device)  # Add a small value to avoid log(0)
     features.append(ln_RMS)
-    
-    # Kurtosis
-    KURT = kurtosis(segment, axis=0)
+
+    # Kurtosis and Skewness (using scipy, so convert to numpy and back)
+    segment_np = segment.cpu().numpy()  # Ensure it's on CPU for scipy
+    KURT = torch.tensor(kurtosis(segment_np, axis=0)).to(segment.device)
     features.append(KURT)
-    
-    # Skewness
-    SKEW = skew(segment, axis=0)
+
+    SKEW = torch.tensor(skew(segment_np, axis=0)).to(segment.device)
     features.append(SKEW)
+
+
+    # Concatenate all features into a single vector
+    feature_vector = torch.cat(features, dim=0)
     
-    # Auto-regressive Model (ARM)
-    ARM_features = []
-    for ch in range(segment.shape[1]):
-        model = AutoReg(segment[:, ch], lags=4, old_names=False).fit()
-        ARM_features.extend(model.params)
-    features.append(ARM_features)
-    
-    # Concatenare tutte le feature in un singolo vettore
-    feature_vector = np.concatenate(features)
     return feature_vector
