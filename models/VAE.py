@@ -5,12 +5,15 @@ from torch.autograd import Variable
 class FC_VAE(nn.Module):
     """Fully connected variational Autoencoder"""
     # dim_input (Input size), nz (Latent size), n_hidden (Hidden layer size
-    def __init__(self, dim_input, nz, n_hidden=1024, device='mps'):
+    def __init__(self, dim_input, nz, n_hidden=1024, device='mps',  dim_output=0):
         super(FC_VAE, self).__init__()
         self.device = device
         self.nz = nz
         self.dim_input = dim_input
         self.n_hidden = n_hidden
+        self.dim_output = dim_output
+        if dim_output == 0:
+            self.dim_output = dim_input
 
         self.encoder = nn.Sequential(nn.Linear(dim_input, n_hidden),
                                 nn.ReLU(inplace=True),
@@ -42,7 +45,7 @@ class FC_VAE(nn.Module):
                                      nn.Linear(n_hidden, n_hidden),
                                      nn.BatchNorm1d(n_hidden),
                                      nn.ReLU(inplace=True),
-                                     nn.Linear(n_hidden, dim_input),
+                                     nn.Linear(n_hidden, self.dim_output),
                                     )
     def forward(self, x):
         # print(f'Forward x: {x.device}')

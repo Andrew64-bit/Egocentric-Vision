@@ -10,6 +10,8 @@ import os
 import os.path
 from utils.logger import logger
 import numpy as np
+import torch
+import pickle
 
 
 #-------------------------------------------------------only RGB-------------------------------------------------------------------------#
@@ -345,6 +347,38 @@ class FeaturesExtendedDataset(data.Dataset):
             
     def __getitem__(self,idx):
         return self.features[idx], self.labels[idx]
+    
+class FeaturesExtendedEMGDataset(data.Dataset):
+    def __init__(self, features_file):
+        # Carica i dati dal file pickle
+        with open(features_file, 'rb') as f:
+            self.data = pickle.load(f)
+    
+    def __len__(self):
+        # Restituisce il numero di campioni nel dataset
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        # Restituisce il campione (features e labels) alla posizione data
+        sample = self.data[idx]
+        features = sample['features']
+        labels = sample['labels']
+        return {'features': features, 'labels': labels}
+    
+
+class FeaturesTuningDataset(data.Dataset):
+    def __init__(self, features_file):
+        # Carica i dati dal file pickle
+        with open(features_file, 'rb') as f:
+            self.data = pickle.load(f)
+    
+    def __len__(self):
+        # Restituisce il numero di campioni nel dataset
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        # Restituisce il campione (features e labels) alla posizione data
+        return self.data[idx]
         
 #-------------------------------------------------------only EMG-------------------------------------------------------------------------#
 
