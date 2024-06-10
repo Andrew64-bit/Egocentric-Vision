@@ -16,11 +16,8 @@ def evaluate(model, data_loader, device):
     with torch.no_grad():
         for x, y in data_loader:
             x, y = x.to(device), y.to(device)
-            if args.model == 'Transformer':
-                x = x.view(x.size(0), 1, 32, 32)  # reshape for Transformer model
+
             outputs = model(x)
-            if args.model == 'Transformer':
-                outputs = outputs.logits
             _, predicted = torch.max(outputs, 1)
             total += y.size(0)
             correct += (predicted == y).sum().item()
@@ -32,16 +29,16 @@ def evaluate(model, data_loader, device):
 
 if __name__ == '__main__':
     BATCH_SIZE = 32
-    LR = 0.0001
-    MOMENTUM = 0.9
-    WEIGHT_DECAY = 1e-4
-    STEP_SIZE = 10
+    LR = float(args.lr) 
+    #MOMENTUM = 0.9
+    #WEIGHT_DECAY = 1e-4
+    NUM_EPOCHS = int(args.epochs) 
+    STEP_SIZE = int(NUM_EPOCHS / 5)
     GAMMA = 0.1
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
         DEVICE = 'mps'
         logger.info("------ USING APPLE SILICON GPU ------")
-    NUM_EPOCHS = 100   
 
     #### DATA SETUP
     # Define the transforms to use on images
@@ -120,10 +117,6 @@ if __name__ == '__main__':
             # Category Loss
             #logger.info(f"X: {x.size()}")
 
-            if args.model == 'Transformer':
-                # Reshape il tensore in [batch_size, num_channels, height, width]
-                # Ogni vettore di 1024 elementi viene trasformato in una matrice 32x32
-                x = x.view(BATCH_SIZE, 1, 32, 32)  # batch_size=32, num_channels=1, height=32, width=32
             
             #logger.info(f"X: {x.size()}")
 
@@ -131,8 +124,6 @@ if __name__ == '__main__':
             # Log details about the outputs
             #logger.info(f"Output type: {cls_o.logits.shape}")
 
-            if args.model == 'Transformer':
-                outputs = outputs.logits
                 
             criterion = nn.CrossEntropyLoss()
             loss = criterion(outputs, y.long())
@@ -151,13 +142,12 @@ if __name__ == '__main__':
 
 
         #save checkpoint in a file
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % STEP_SIZE == 0:
             train_accuracy = evaluate(model, train_loader, DEVICE)
             val_accuracy = evaluate(model, val_loader, DEVICE)
             logger.info(f'[EPOCH {epoch+1}] Train Accuracy: {train_accuracy}')
             logger.info(f'[EPOCH {epoch+1}] Val Accuracy: {val_accuracy}')
             torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
-        if (epoch+1) % STEP_SIZE == 0:
             logger.info(f'Current LR: {scheduler.get_last_lr()}')
         
 

@@ -50,8 +50,8 @@ class MLPWithDropout(nn.Module):
         num_bottleneck = 512
         num_bottleneck1 = 256
         classifier = nn.Sequential(
-                nn.ReLU(),
                 nn.Linear(self.clip_feature_dim, num_bottleneck),
+                nn.BatchNorm1d(num_bottleneck),
                 nn.ReLU(),
                 nn.Dropout(0.5),
                 nn.Linear(num_bottleneck, num_bottleneck1),

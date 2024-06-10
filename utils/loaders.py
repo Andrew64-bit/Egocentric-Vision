@@ -581,7 +581,7 @@ class ActionNetEmgRgbDataset(data.Dataset, ABC):
         #logger.info(f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated")
         # A single EpicVideoRecord is a single clip,
         # example of tup is :
-        file = ['S00_2.pkl' ,'S01_1.pkl', 'S02_2.pkl', 'S02_3.pkl', 'S02_4.pkl', 'S03_1.pkl', 'S03_2.pkl', 'S04_1.pkl', 'S05_2.pkl', 'S06_1.pkl', 'S06_2.pkl', 'S07_1.pkl', 'S08_1.pkl', 'S09_2.pkl']
+        file = ['S04_1.pkl']
         self.video_list = []
         for f in file:
             subject = list_action[list_action['file'] == f]
