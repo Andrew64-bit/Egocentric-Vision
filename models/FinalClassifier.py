@@ -40,24 +40,24 @@ class MLP(nn.Module):
 
 
 class MLPWithDropout(nn.Module):
-    def __init__(self, clip_feature_dim, num_class):
+    def __init__(self, clip_feature_dim, num_class, num_bottleneck = 512, num_bottleneck1 = 256):
         super(MLPWithDropout, self).__init__()
         self.num_class = num_class
         self.clip_feature_dim = clip_feature_dim
         self.classifier = self.fc_fusion()
+        self.num_bottleneck =num_bottleneck
+        self.num_bottleneck1 = num_bottleneck1
         
     def fc_fusion(self):
-        num_bottleneck = 512
-        num_bottleneck1 = 256
         classifier = nn.Sequential(
-                nn.Linear(self.clip_feature_dim, num_bottleneck),
-                nn.BatchNorm1d(num_bottleneck),
+                nn.Linear(self.clip_feature_dim, self.num_bottleneck),
+                nn.BatchNorm1d(self.num_bottleneck),
                 nn.ReLU(),
                 nn.Dropout(0.5),
-                nn.Linear(num_bottleneck, num_bottleneck1),
+                nn.Linear(self.num_bottleneck, self.num_bottleneck1),
                 nn.ReLU(),
                 nn.Dropout(0.5),
-                nn.Linear(num_bottleneck1, self.num_class),
+                nn.Linear(self.num_bottleneck1, self.num_class),
                 )
         return classifier
     
@@ -109,7 +109,7 @@ class PositionalEncoding(nn.Module):
         return x
 
 class TransformerClassifier(nn.Module):
-    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout=0.1):
+    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes,num_bottleneck = 512, dropout=0.1):
         super(TransformerClassifier, self).__init__()
         self.d_model = d_model
         self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
@@ -117,8 +117,8 @@ class TransformerClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         
-        self.fc = nn.Linear(d_model, 512)
-        self.fc2 = nn.Linear(512, num_classes)
+        self.fc = nn.Linear(d_model, num_bottleneck)
+        self.fc2 = nn.Linear(num_bottleneck, num_classes)
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
@@ -142,17 +142,17 @@ class TransformerClassifier(nn.Module):
         return output
     
 class LSTMTransformerClassifier(nn.Module):
-    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout=0.1):
+    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes,hidden_size = 256, dropout=0.1):
         super(LSTMTransformerClassifier, self).__init__()
         self.d_model = d_model
         self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
         
-        self.lstm = nn.LSTM(input_size=d_model, hidden_size=256, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=d_model, hidden_size=hidden_size, num_layers=1, batch_first=True)
         
-        encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=hidden_size, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         
-        self.fc = nn.Linear(256, num_classes)
+        self.fc = nn.Linear(hidden_size, num_classes)
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
@@ -179,7 +179,7 @@ class LSTMTransformerClassifier(nn.Module):
 
 
 class TRNClassifier(nn.Module):
-    def __init__(self, clip_feature_dim = 1024, num_clips = 5, num_class = 8, dropout = 0.5):
+    def __init__(self, num_bottleneck = 256, clip_feature_dim = 1024, num_clips = 5, num_class = 8, dropout = 0.5):
         super(TRNClassifier, self).__init__()
         self.subsample_num = 3
         self.clip_feature_dim = clip_feature_dim
@@ -194,7 +194,6 @@ class TRNClassifier(nn.Module):
             self.subsample_scales.append(min(self.subsample_num, len(relations_scale)))
 
         self.num_class = num_class
-        num_bottleneck = 256
         self.fc_fusion_scales = nn.ModuleList()
         for i in range(len(self.scales)):
             scale = self.scales[i]
