@@ -30,7 +30,7 @@ def train(model, optimizer, epochs, device, train_loader_rgb, train_loader_emg, 
         overall_loss = 0
 
         for (rgb_batch_idx, (rgb_x, _)), (emg_batch_idx, (emg_x, _)) in tqdm(zip(enumerate(train_loader_rgb), enumerate(train_loader_emg))):
-            # print(f"Input size: {rgb_x.size()}")
+            # print(f"Input: {rgb_x}")
             inputs = Variable(rgb_x)
             inputs = inputs.to(device)
             # print(f'DEVICE used: {device}')
@@ -81,6 +81,132 @@ def evaluate(model, device, test_loader_rgb, test_loader_emg):
     
     return all_reconstructed, all_original
 
+def train_emg(model, optimizer, epochs, device, train_loader_rgb, train_loader_emg, batch_size, scheduler):
+    logger = setup_logger("LOG", "00_log_training_VAE")
+
+    model.train()
+    # reset parameter gradients
+    model.zero_grad()
+
+    for epoch in range(epochs):
+        overall_loss = 0
+
+        for (rgb_batch_idx, sample_rgb), (emg_batch_idx, sample_emg) in tqdm(zip(enumerate(train_loader_rgb), enumerate(train_loader_emg))):
+            # print(f"Input: {rgb_x}")
+            inputs = Variable(sample_rgb["features"])
+            inputs = inputs.to(device)
+            # print(f'DEVICE used: {device}')
+            # print(f'Input: {inputs.device}')
+
+            targets = Variable(sample_emg["features"])
+            targets = targets.to(device)
+
+            optimizer.zero_grad()
+
+            reconstructed_target, latents, mu, logvar = model(inputs)
+            loss = loss_function(reconstructed_target, targets, mu, logvar)
+            overall_loss += loss.data.item() * inputs.size(0)
+            
+            
+            loss.backward()
+            optimizer.step()
+
+        scheduler.step()
+        logger.info(f"\tEpoch, {epoch + 1}, \tAverage Loss: , {overall_loss/(rgb_batch_idx*batch_size)}")
+
+
+# Funzione di valutazione
+def evaluate_emg(model, device, test_loader_rgb, test_loader_emg):
+    logger = setup_logger("LOG", "00_log_evaluation_VAE")
+    model.eval()
+    test_loss = 0
+    all_reconstructed = []
+    all_original = []
+    
+    with torch.no_grad():
+        for (rgb_batch_idx, sample_rgb), (emg_batch_idx, sample_emg) in tqdm(zip(enumerate(test_loader_rgb), enumerate(test_loader_emg))):
+
+            inputs = Variable(sample_rgb["features"]).to(device)
+            reconstructed, z, mu, logvar = model(inputs)
+            
+            loss = loss_function(reconstructed, inputs, mu, logvar)
+            test_loss += loss.item()
+            
+            all_reconstructed.append(reconstructed.cpu().numpy())
+            all_original.append(inputs.cpu().numpy())
+    
+    test_loss /= len(test_loader_rgb.dataset)
+    print(f'Test Loss: {test_loss:.4f}')
+    
+    all_reconstructed = np.concatenate(all_reconstructed, axis=0)
+    all_original = np.concatenate(all_original, axis=0)
+    
+    return all_reconstructed, all_original
+
+def train_tuning(model, optimizer, epochs, device, train_loader_rgb, train_loader_emg, batch_size, scheduler):
+    logger = setup_logger("LOG", "00_log_training_VAE")
+
+    model.train()
+    # reset parameter gradients
+    model.zero_grad()
+
+    for epoch in range(epochs):
+            overall_loss = 0
+
+            for (rgb_batch_idx, rgb_input), (emg_batch_idx, emg_output) in zip(enumerate(train_loader_rgb), enumerate(train_loader_emg)):
+                # print(f"Input: {rgb_x}")
+                inputs = Variable(rgb_input)
+                inputs = inputs.to(device)
+                # print(f'DEVICE used: {device}')
+                # print(f'Input: {inputs.device}')
+
+                targets = Variable(emg_output)
+                targets = targets.to(device)
+
+                optimizer.zero_grad()
+
+                reconstructed_target, latents, mu, logvar = model(inputs)
+                # print("Input shape: ", inputs.shape)
+                #print("Reconstructed target shape: ", reconstructed_target.shape)
+                #print("Targets shape: ", targets.shape)
+                loss = loss_function(reconstructed_target, targets, mu, logvar)
+                overall_loss += loss.data.item() * inputs.size(0)
+                
+                
+                loss.backward()
+                optimizer.step()
+
+            scheduler.step()
+            logger.info(f"\tEpoch, {epoch + 1}, \tAverage Loss: , {overall_loss/(rgb_batch_idx*batch_size)}")
+
+
+# Funzione di valutazione
+def evaluate_tuning(model, device, test_loader_rgb, test_loader_emg):
+    logger = setup_logger("LOG", "00_log_evaluation_VAE")
+    model.eval()
+    test_loss = 0
+    all_reconstructed = []
+    all_original = []
+    
+    with torch.no_grad():
+        for (rgb_batch_idx, rgb_input), (emg_batch_idx, emg_output) in zip(enumerate(test_loader_rgb), enumerate(test_loader_emg)):
+
+            inputs = Variable(rgb_input).to(device)
+            reconstructed, z, mu, logvar = model(inputs)
+            
+            loss = loss_function(reconstructed, emg_output, mu, logvar)
+            test_loss += loss.item()
+            
+            all_reconstructed.append(reconstructed.cpu().numpy())
+            all_original.append(inputs.cpu().numpy())
+    
+    test_loss /= len(test_loader_rgb.dataset)
+    print(f'Test Loss: {test_loss:.4f}')
+    
+    all_reconstructed = np.concatenate(all_reconstructed, axis=0)
+    all_original = np.concatenate(all_original, axis=0)
+    
+    return all_reconstructed, all_original
 
 if __name__ == '__main__':
 
