@@ -44,9 +44,10 @@ class MLPWithDropout(nn.Module):
         super(MLPWithDropout, self).__init__()
         self.num_class = num_class
         self.clip_feature_dim = clip_feature_dim
-        self.classifier = self.fc_fusion()
         self.num_bottleneck =num_bottleneck
         self.num_bottleneck1 = num_bottleneck1
+        self.classifier = self.fc_fusion()
+
         
     def fc_fusion(self):
         classifier = nn.Sequential(

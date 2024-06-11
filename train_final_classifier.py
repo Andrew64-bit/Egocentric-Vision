@@ -62,7 +62,15 @@ if __name__ == '__main__':
     if args.model == 'MLP':
         model = MLP(1024,8)
     elif args.model == 'MLPWithDropout':
-        model = MLPWithDropout(1024,8)
+        if args.emg:
+            num_bottleneck = 32
+            num_bottleneck1 = 16
+            d_model = 64
+        else:
+            d_model = 1024
+            num_bottleneck = 512
+            num_bottleneck1 = 256
+        model = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1)
     elif args.model == 'TransformerClassifier':
         if args.emg:
         # Iperparametri
