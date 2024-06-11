@@ -158,7 +158,7 @@ if __name__ == '__main__':
             val_accuracy = evaluate(model, val_loader, DEVICE)
             logger.info(f'[EPOCH {epoch+1}] Train Accuracy: {train_accuracy}')
             logger.info(f'[EPOCH {epoch+1}] Val Accuracy: {val_accuracy}')
-            torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}_epoch_{epoch+1}.pth')
+            torch.save(model.state_dict(), f'./saved_models/{args.model}/final_{args.model}{"_emg" if args.emg else ""}_epoch_{epoch+1}.pth')
             logger.info(f'Current LR: {scheduler.get_last_lr()}')
         
 
