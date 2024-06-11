@@ -49,8 +49,8 @@ if __name__ == '__main__':
         T.Normalize([0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    train_dataset = FeaturesDataset(args.features_file,'train')
-    val_dataset = FeaturesDataset(args.features_file,'test') 
+    train_dataset = FeaturesDataset(args.features_file,'train', args.emg)
+    val_dataset = FeaturesDataset(args.features_file,'test', args.emg) 
 
     # Define the DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
@@ -64,15 +64,26 @@ if __name__ == '__main__':
     elif args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
     elif args.model == 'TransformerClassifier':
+        if args.emg:
         # Iperparametri
-        d_model = 1024
-        num_heads = 8
-        num_layers = 4
-        d_ff = 2048
-        max_seq_length = 5
-        num_classes = 8
-        dropout = 0.3
-        model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
+            d_model = 64
+            num_heads = 8
+            num_layers = 4
+            d_ff = 128
+            max_seq_length = 5
+            num_classes = 8
+            num_bottleneck = 32
+            dropout = 0.3
+        else:
+            d_model = 1024
+            num_heads = 8
+            num_layers = 4
+            d_ff = 2048
+            max_seq_length = 5
+            num_classes = 8
+            num_bottleneck = 512
+            dropout = 0.3
+        model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
     elif args.model == "LSTMTransformerClassifier":
         # Iperparametri
         d_model = 1024

@@ -300,15 +300,19 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
 class FeaturesDataset(data.Dataset):
 
-    def __init__(self, features_file, mode='train'):
+    def __init__(self, features_file, mode='train', emg=False):
 
         # Carica le feature dal file pickle
         features = pd.read_pickle(features_file+"_"+mode+".pkl")
 
         # Estrai le feature e le etichette
-        list_of_features = [np.array(feature['features_RGB']) for feature in features["features"]]
-        labels = [feature['label'] for feature in features["features"]]
-        # Converti list_of_features in un array NumPy
+        if emg:
+            list_of_features = [np.array(feature["features"]) for feature in features]
+            labels = [feature["labels"] for feature in features]
+        else:
+            list_of_features = [np.array(feature['features_RGB']) for feature in features["features"]]
+            labels = [feature['label'] for feature in features["features"]]
+            # Converti list_of_features in un array NumPy
         list_of_features = np.array(list_of_features)
         labels = np.array(labels)
 
