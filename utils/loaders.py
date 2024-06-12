@@ -723,7 +723,10 @@ class ActionNetEmgRgbDataset(data.Dataset, ABC):
             
             # indici iniziali di ogni segmento centrati al centroide del segmento
             clips_start_idx = np.linspace(0, max_idx, num=num_clips, dtype=float)
-            segment_dim = clips_start_idx[1]
+            if num_clips == 1:
+                segment_dim = clips_start_idx[0] - max_idx
+            else:
+                segment_dim = clips_start_idx[1]
             # caso in cui i segmenti non si overlappano, centralizza il segmento
             if segment_dim > num_frames_per_clip*stride:
                 clips_start_idx += centroid_offset

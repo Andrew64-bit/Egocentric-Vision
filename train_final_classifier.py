@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier, LSTMTransformerClassifier, TRNClassifier
+from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier, LSTM_Emb_Classifier, TRNClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -8,6 +8,19 @@ from torchmetrics import Accuracy
 from tqdm import tqdm
 from utils.logger import logger
 from utils.args import args
+
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+    elif isinstance(m, nn.LSTM):
+        for name, param in m.named_parameters():
+            if 'weight_ih' in name:
+                torch.nn.init.xavier_uniform_(param.data)
+            elif 'weight_hh' in name:
+                torch.nn.init.orthogonal_(param.data)
+            elif 'bias' in name:
+                param.data.fill_(0)
 
 def evaluate(model, data_loader, device):
     model.eval()
@@ -33,7 +46,8 @@ if __name__ == '__main__':
     #MOMENTUM = 0.9
     #WEIGHT_DECAY = 1e-4
     NUM_EPOCHS = int(args.epochs) 
-    STEP_SIZE = int(NUM_EPOCHS / 5)
+    STEP_SIZE = args.step_size
+    STEP_ACC = args.step_acc
     GAMMA = 0.1
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     if torch.backends.mps.is_available():
@@ -74,10 +88,10 @@ if __name__ == '__main__':
     elif args.model == 'TransformerClassifier':
         if args.emg:
         # Iperparametri
-            d_model = 64
-            num_heads = 8
+            d_model = args.input_size
+            num_heads = 4
             num_layers = 4
-            d_ff = 128
+            d_ff = args.input_size*2
             max_seq_length = 5
             num_classes = 8
             num_bottleneck = 32
@@ -92,22 +106,18 @@ if __name__ == '__main__':
             num_bottleneck = 512
             dropout = 0.3
         model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
-    elif args.model == "LSTMTransformerClassifier":
-        # Iperparametri
-        d_model = 1024
-        num_heads = 8
-        num_layers = 6
-        d_ff = 512
-        max_seq_length = 5  # Numero di clip
-        num_classes = 8
-        dropout = 0.1
-
-        # Creazione del modello
-        model = LSTMTransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
     elif args.model == 'LSTMClassifier':
-        model = LSTMClassifier(1024,8)
+        if args.emg:
+            model = LSTMClassifier(args.input_size,8)
+        else:
+            model = LSTMClassifier(1024,8)
     elif args.model == 'TRNClassifier':
-        model = TRNClassifier()
+        if args.emg:
+            model = TRNClassifier(num_bottleneck=16, clip_feature_dim=64, num_clips=5, num_class=8, dropout=0.5)
+        else:
+            model = TRNClassifier()
+    elif args.model == 'LSTM_Emb_Classifier':
+        model = LSTM_Emb_Classifier(input_dim=args.input_size, num_class=8, hidden_dim=128, num_layers=4, dropout=0.5)
     else:
         raise ValueError(f"Invalid model: {args.model}")
         
@@ -119,8 +129,10 @@ if __name__ == '__main__':
     #### TRAINING SETUP
     # Move model to device before passing it to the optimizer
     model = model.to(DEVICE)
+    #model.apply(init_weights)
 
     # Create Optimizer & Scheduler objects
+    #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR, betas=(0.9, 0.98), eps=1e-9)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE, gamma=GAMMA)
 
@@ -132,12 +144,18 @@ if __name__ == '__main__':
         epoch_loss = [0.0, 0]
         for i_val,(x, y) in tqdm(enumerate(train_loader)):
             x, y = x.to(DEVICE), y.to(DEVICE)
+            print(f'x: {x.shape}')
+            # Controlla se ci sono nan nei dati di input
+            if torch.isnan(x).sum() > 0 or torch.isinf(x).sum() > 0:
+                print("Input contains nan or inf values")
+                x = torch.nan_to_num(x, nan=0.0, posinf=1e8, neginf=-1e8)
             #logger.info(f"X: {x[0][0]}")
             # Category Loss
             #logger.info(f"X: {x.size()}")
 
             
             #logger.info(f"X: {x.size()}")
+            #logger.info(f'x : {x}')
 
             outputs = model(x)
             # Log details about the outputs
@@ -146,6 +164,9 @@ if __name__ == '__main__':
                 
             criterion = nn.CrossEntropyLoss()
             loss = criterion(outputs, y.long())
+            #logger.info(f'Outputs : {outputs}')
+            #logger.info(f'y : {y.long()}')
+            #logger.info(f'Loss = {loss}')
 
             optimizer.zero_grad()
             loss.backward()
@@ -153,15 +174,17 @@ if __name__ == '__main__':
 
             epoch_loss[0] += loss.item()
             epoch_loss[1] += x.size(0)
+            #logger.info(f'epoch_loss[0]={epoch_loss[0]}+loss.item()={loss.item()}')
+            #logger.info(f'epoch_loss[1]={epoch_loss[1]}+x.size(0)={x.size(0)}')
             if (i_val + 1) % (len(train_loader) // 5) == 0:
                 logger.info("[{}/{}]".format(i_val + 1, len(train_loader)))
-            
+        
         scheduler.step()
         logger.info(f'[EPOCH {epoch+1}] Avg. Loss: {epoch_loss[0] / epoch_loss[1]}')
 
 
         #save checkpoint in a file
-        if (epoch+1) % STEP_SIZE == 0:
+        if (epoch+1) % STEP_ACC == 0:
             train_accuracy = evaluate(model, train_loader, DEVICE)
             val_accuracy = evaluate(model, val_loader, DEVICE)
             logger.info(f'[EPOCH {epoch+1}] Train Accuracy: {train_accuracy}')
