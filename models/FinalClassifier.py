@@ -40,12 +40,13 @@ class MLP(nn.Module):
 
 
 class MLPWithDropout(nn.Module):
-    def __init__(self, clip_feature_dim, num_class, num_bottleneck = 512, num_bottleneck1 = 256):
+    def __init__(self, clip_feature_dim, num_class, num_bottleneck = 512, num_bottleneck1 = 256, dropout = 0.5):
         super(MLPWithDropout, self).__init__()
         self.num_class = num_class
         self.clip_feature_dim = clip_feature_dim
         self.num_bottleneck =num_bottleneck
         self.num_bottleneck1 = num_bottleneck1
+        self.dropout = dropout
         self.classifier = self.fc_fusion()
 
         
@@ -54,10 +55,10 @@ class MLPWithDropout(nn.Module):
                 nn.Linear(self.clip_feature_dim, self.num_bottleneck),
                 nn.BatchNorm1d(self.num_bottleneck),
                 nn.ReLU(),
-                nn.Dropout(0.5),
+                nn.Dropout(self.dropout),
                 nn.Linear(self.num_bottleneck, self.num_bottleneck1),
                 nn.ReLU(),
-                nn.Dropout(0.5),
+                nn.Dropout(self.dropout),
                 nn.Linear(self.num_bottleneck1, self.num_class),
                 )
         return classifier
@@ -208,6 +209,8 @@ class TRNClassifier(nn.Module):
 
             self.fc_fusion_scales.append(fc_fusion)
 
+        self.softmax = nn.Softmax(dim=1)
+
         print('Multi-Scale Temporal Relation Network Module in use', ['%d-clip relation' % i for i in self.scales])
 
     def forward(self, input):
@@ -222,7 +225,9 @@ class TRNClassifier(nn.Module):
                 act_relation = act_relation.view(act_relation.size(0), self.scales[scaleID] * self.clip_feature_dim)
                 act_relation = self.fc_fusion_scales[scaleID](act_relation)
                 act_all += act_relation
-        return act_all
+        
+        output = self.softmax(act_all)
+        return output
 
     def return_relationset(self, num_clips, num_clips_relation):
         import itertools

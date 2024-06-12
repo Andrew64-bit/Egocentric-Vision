@@ -1,0 +1,8 @@
+STAT
+epoch = 200, lr = 0.005, step_size = 100
+loss test = 0.13
+loss_train = 1.39
+LSTM
+epoch = 100, lr = 0.006, step_size = 50
+loss test = 0.0125
+loss_train = 0.65

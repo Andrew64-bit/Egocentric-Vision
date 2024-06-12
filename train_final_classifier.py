@@ -63,14 +63,16 @@ if __name__ == '__main__':
         model = MLP(1024,8)
     elif args.model == 'MLPWithDropout':
         if args.emg:
-            num_bottleneck = 32
-            num_bottleneck1 = 16
-            d_model = 64
+            num_bottleneck = int(args.input_size / 2)
+            num_bottleneck1 = int(num_bottleneck / 2)
+            d_model = args.input_size
+            dropout = 0.1
         else:
             d_model = 1024
             num_bottleneck = 512
             num_bottleneck1 = 256
-        model = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1)
+            dropout = 0.5
+        model = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
     elif args.model == 'TransformerClassifier':
         if args.emg:
         # Iperparametri
@@ -105,9 +107,28 @@ if __name__ == '__main__':
         # Creazione del modello
         model = LSTMTransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
     elif args.model == 'LSTMClassifier':
-        model = LSTMClassifier(1024,8)
+        if args.emg:
+            d_model = args.input_size
+            dropout = 0.0
+            hidden_dim = 64
+            num_layers = 1
+        else:
+            d_model = 1024
+            dropout = 0.5
+            num_layers = 1
+            hidden_dim = 128
+
+
+        model = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
     elif args.model == 'TRNClassifier':
-        model = TRNClassifier()
+        if args.emg:
+             num_bottleneck = int(args.input_size / 2)
+             clip_feature_dim = args.input_size
+             dropout = 0.2
+             model = TRNClassifier(num_bottleneck=num_bottleneck, clip_feature_dim=clip_feature_dim, dropout=dropout)
+        else:
+            model = TRNClassifier()
+        
     else:
         raise ValueError(f"Invalid model: {args.model}")
         
