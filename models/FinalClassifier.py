@@ -199,7 +199,7 @@ class LSTM_Emb_Classifier(nn.Module):
     
 class LSTM_Embedding_Classifier(nn.Module):
     def __init__(self, input_dim, num_class, embedding_dim, hidden_dim=64, num_layers=1, dropout=0.5):
-        super(LSTM_Emb_Classifier, self).__init__()
+        super(LSTM_Embedding_Classifier, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         
@@ -207,9 +207,8 @@ class LSTM_Embedding_Classifier(nn.Module):
         self.attention = Attention(hidden_dim)
         self.dropout = nn.Dropout(dropout)
         self.batch_norm = nn.BatchNorm1d(hidden_dim)
-        # Linear layers with expansion and compression
-        self.fc1 = nn.Linear(hidden_dim, 512)  # Expanded dimension
-        self.fc2 = nn.Linear(512, embedding_dim)  # Compressed dimension
+        self.fc1 = nn.Linear(hidden_dim, 256)
+        self.fc2 = nn.Linear(256, embedding_dim)
         self.fc3 = nn.Linear(embedding_dim, num_class)
     
     def forward(self, x):
@@ -217,25 +216,17 @@ class LSTM_Embedding_Classifier(nn.Module):
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         
         lstm_out, _ = self.lstm(x, (h0, c0))
-       # Reshape lstm_out to apply batch normalization on the correct dimension
+        # Reshape lstm_out to apply batch normalization on the correct dimension
         lstm_out = lstm_out.permute(0, 2, 1)  # Shape becomes (batch_size, hidden_dim, num_clips)
         lstm_out = self.batch_norm(lstm_out)
         lstm_out = lstm_out.permute(0, 2, 1)  # Shape becomes (batch_size, num_clips, hidden_dim)
         context = self.attention(lstm_out)  # Apply attention mechanism
         context = self.dropout(context)
-        # Linear layers with batch normalization and ReLU activation
-        out = self.fc1(context)
-        out = self.batch_norm1(out)
-        out = F.relu(out)
-        out = self.dropout(out)
-
-        embeddings = self.fc2(out)
-        embeddings = self.batch_norm2(embeddings)
-        embeddings = F.relu(embeddings)
-        embeddings = self.dropout(embeddings)
-        
-        out = self.fc3(embeddings)
-        return out, embeddings
+        context = F.relu(self.fc1(context))
+        context = self.dropout(context)
+        embeddings = F.relu(self.fc2(context))
+        output = self.fc3(embeddings)
+        return output, embeddings
 
 
 

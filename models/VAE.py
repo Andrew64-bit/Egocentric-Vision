@@ -5,7 +5,7 @@ from torch.autograd import Variable
 class FC_VAE(nn.Module):
     """Fully connected variational Autoencoder"""
     # dim_input (Input size), nz (Latent size), n_hidden (Hidden layer size
-    def __init__(self, dim_input, nz, n_hidden=1024, device='mps',  dim_output=0):
+    def __init__(self, dim_input, nz, n_hidden=256, device='mps',  dim_output=0):
         super(FC_VAE, self).__init__()
         self.device = device
         self.nz = nz
