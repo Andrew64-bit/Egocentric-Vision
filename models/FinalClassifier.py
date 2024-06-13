@@ -93,7 +93,7 @@ class LSTMClassifier(nn.Module):
         out = self.fc(out)
         return out
     
-class PositionalEncoding(nn.Module):
+class PositionalEncoding1(nn.Module):
     def __init__(self, d_model, max_seq_length):
         super(PositionalEncoding, self).__init__()
         
@@ -114,7 +114,7 @@ class TransformerClassifier(nn.Module):
     def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes,num_bottleneck = 512, dropout=0.1):
         super(TransformerClassifier, self).__init__()
         self.d_model = d_model
-        self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+        self.positional_encoding = PositionalEncoding1(d_model, max_seq_length)
         
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
@@ -143,40 +143,91 @@ class TransformerClassifier(nn.Module):
         
         return output
     
-class LSTMTransformerClassifier(nn.Module):
-    def __init__(self, d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes,hidden_size = 256, dropout=0.1):
-        super(LSTMTransformerClassifier, self).__init__()
-        self.d_model = d_model
-        self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_seq_length):
+        super(PositionalEncoding, self).__init__()
         
-        self.lstm = nn.LSTM(input_size=d_model, hidden_size=hidden_size, num_layers=1, batch_first=True)
+        pe = torch.zeros(max_seq_length, d_model)
+        position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
         
-        encoder_layer = nn.TransformerEncoderLayer(d_model=hidden_size, nhead=num_heads, dim_feedforward=d_ff, dropout=dropout)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
         
-        self.fc = nn.Linear(hidden_size, num_classes)
-        self.dropout = nn.Dropout(dropout)
+        self.register_buffer('pe', pe.unsqueeze(0))
         
     def forward(self, x):
-        # x.shape: (batch_size, num_clips, d_model)
-        x = self.positional_encoding(x)
+        x = x + self.pe[:, :x.size(1)]
+        return x
+
+class Attention(nn.Module):
+    def __init__(self, hidden_dim):
+        super(Attention, self).__init__()
+        self.attention = nn.Linear(hidden_dim, 1, bias=False)
+    
+    def forward(self, lstm_output):
+        attn_weights = F.softmax(self.attention(lstm_output), dim=1)
+        context = torch.sum(attn_weights * lstm_output, dim=1)
+        return context
+
+class LSTM_Emb_Classifier(nn.Module):
+    def __init__(self, input_dim, num_class, hidden_dim=64, num_layers=1, dropout=0.5):
+        super(LSTM_Emb_Classifier, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
         
-        # Passa attraverso LSTM
-        lstm_out, _ = self.lstm(x)
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout)
+        self.attention = Attention(hidden_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.batch_norm = nn.BatchNorm1d(hidden_dim)
+        self.fc1 = nn.Linear(hidden_dim, num_class)
+    
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         
-        # Permuta per adattare alla forma attesa dal Transformer Encoder
-        lstm_out = lstm_out.permute(1, 0, 2)  # (num_clips, batch_size, d_model*2)
-        
-        # Passa attraverso il Transformer Encoder
-        transformer_out = self.transformer_encoder(lstm_out)
-        
-        # Media le uscite del Transformer per ogni clip
-        transformer_out = transformer_out.mean(dim=0)  # (batch_size, d_model*2)
-        
-        # Passa attraverso il livello finale di classificazione
-        output = self.fc(self.dropout(transformer_out))  # (batch_size, num_classes)
-        
+        lstm_out, _ = self.lstm(x, (h0, c0))
+       # Reshape lstm_out to apply batch normalization on the correct dimension
+        lstm_out = lstm_out.permute(0, 2, 1)  # Shape becomes (batch_size, hidden_dim, num_clips)
+        lstm_out = self.batch_norm(lstm_out)
+        lstm_out = lstm_out.permute(0, 2, 1)  # Shape becomes (batch_size, num_clips, hidden_dim)
+        context = self.attention(lstm_out)  # Apply attention mechanism
+        context = self.dropout(context)
+        output = F.relu(self.fc1(context))
         return output
+    
+class LSTM_Embedding_Classifier(nn.Module):
+    def __init__(self, input_dim, num_class, embedding_dim, hidden_dim=64, num_layers=1, dropout=0.5):
+        super(LSTM_Embedding_Classifier, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout)
+        self.attention = Attention(hidden_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.batch_norm = nn.BatchNorm1d(hidden_dim)
+        self.fc1 = nn.Linear(hidden_dim, 256)
+        self.fc2 = nn.Linear(256, embedding_dim)
+        self.fc3 = nn.Linear(embedding_dim, num_class)
+    
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        
+        lstm_out, _ = self.lstm(x, (h0, c0))
+        # Reshape lstm_out to apply batch normalization on the correct dimension
+        lstm_out = lstm_out.permute(0, 2, 1)  # Shape becomes (batch_size, hidden_dim, num_clips)
+        lstm_out = self.batch_norm(lstm_out)
+        lstm_out = lstm_out.permute(0, 2, 1)  # Shape becomes (batch_size, num_clips, hidden_dim)
+        context = self.attention(lstm_out)  # Apply attention mechanism
+        context = self.dropout(context)
+        context = F.relu(self.fc1(context))
+        context = self.dropout(context)
+        embeddings = F.relu(self.fc2(context))
+        output = self.fc3(embeddings)
+        return output, embeddings
+
 
 
 
