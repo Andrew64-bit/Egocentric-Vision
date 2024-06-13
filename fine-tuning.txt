@@ -22,3 +22,9 @@ GAMMA = 0.1
 NUM_EPOCHS = 50
 
 --> loss = 0.2790,  Train Accuracy: 0.5474330357142857, Val Accuracy: 0.378125
+
+
+
+
+Test Loss: 0.2692
+2024-06-12 21:32:28 LOG INFO 	Epoch, 100, 	Average Loss: , 0.0003806902783584188

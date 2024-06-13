@@ -9,9 +9,15 @@ from utils.args import args
 import numpy as np
 
 def loss_function(recon_x, x, mu, logvar):
-    lamb = 0.001
+
+    lamb = 0.0000001
     MSE = nn.MSELoss()
-    lloss = MSE(recon_x,x)
+    mse = MSE(recon_x,x)
+    norm_original_data = torch.norm(x)
+
+    # Calcola l'errore quadratico medio normalizzato
+    nmse = mse / (norm_original_data ** 2)
+    lloss = nmse * 100
 
     if lamb>0:
         KL_loss = -0.5*torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
@@ -21,7 +27,7 @@ def loss_function(recon_x, x, mu, logvar):
 
 def train(model, optimizer, epochs, device, train_loader_rgb, train_loader_emg, batch_size, scheduler):
     logger = setup_logger("LOG", "00_log_training_VAE")
-
+    
     model.train()
     # reset parameter gradients
     model.zero_grad()
@@ -35,7 +41,8 @@ def train(model, optimizer, epochs, device, train_loader_rgb, train_loader_emg, 
             inputs = inputs.to(device)
             # print(f'DEVICE used: {device}')
             # print(f'Input: {inputs.device}')
-
+            if not torch.equal(rgb_x, emg_x):
+                raise ValueError(f"RGB and EMG inputs are not aligned!\n{rgb_x}\n{emg_x}")
             targets = Variable(emg_x)
             targets = targets.to(device)
 

@@ -24,7 +24,7 @@ def evaluate(model_emg,model_rgb, data_loader_emg, data_loader_rgb,p, device):
 
             outputs_emg = model_emg(emg)
             outputs_rgb = model_rgb(rgb)
-
+            #outputs = forward_pass(outputs_emg,outputs_rgb,p)
             outputs = outputs_rgb * p + outputs_emg * (1-p)
             _, predicted = torch.max(outputs, 1)
             total += y.size(0)
@@ -32,6 +32,12 @@ def evaluate(model_emg,model_rgb, data_loader_emg, data_loader_rgb,p, device):
     accuracy = correct / total
     return accuracy
 
+def forward_pass(outputs_emg,outputs_rgb,p):
+    softmax = nn.Softmax(dim=1)
+    outputs_emg = softmax(outputs_emg)
+    outputs_rgb = softmax(outputs_rgb)
+    outputs = outputs_rgb * p + outputs_emg * (1-p)
+    return outputs
 
 
 
@@ -53,10 +59,10 @@ if __name__ == '__main__':
     #### ARCHITECTURE SETUP
     # Create the Network Architecture object
     if args.model == 'MLPWithDropout':
-        num_bottleneck = 32
-        num_bottleneck1 = 16
-        d_model = 64
-        dropout = 0.0
+        d_model = 1024
+        num_bottleneck = 512
+        num_bottleneck1 = 256
+        dropout = 0.5
         model_emg = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
 
 
@@ -87,10 +93,10 @@ if __name__ == '__main__':
         model_rgb = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
     elif args.model == 'LSTMClassifier':
 
-        d_model = args.size_emg
-        dropout = 0.2
-        hidden_dim = 32
+        d_model = 1024
+        dropout = 0.5
         num_layers = 1
+        hidden_dim = 128
         model_emg = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
 
         d_model = 1024
@@ -99,17 +105,22 @@ if __name__ == '__main__':
         hidden_dim = 128
         model_rgb = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
     
+    elif args.model == 'TRNClassifier':
+        model_emg = TRNClassifier()
+
+        model_rgb = TRNClassifier()
     else:
+    
         raise ValueError(f"Invalid model: {args.model}")
         
-    logger.info(f"Model EMG: {model_emg}")
-    logger.info(f"len train_dataset: {len(val_dataset_emg)}")
-    logger.info(f"len train_loader: {len(loader_emg)}")
+    #logger.info(f"Model EMG: {model_emg}")
+    #logger.info(f"len train_dataset: {len(val_dataset_emg)}")
+    #logger.info(f"len train_loader: {len(loader_emg)}")
 
-    logger.info(f"Model RGB: {model_rgb}")
-    logger.info(f"len train_dataset: {len(val_dataset_rgb)}")
-    logger.info(f"len train_loader: {len(loader_rgb)}")
-
+    #logger.info(f"Model RGB: {model_rgb}")
+    #logger.info(f"len train_dataset: {len(val_dataset_rgb)}")
+    #logger.info(f"len train_loader: {len(loader_rgb)}")
+    logger.info(f"prob: {args.prob}")
     model_emg.load_state_dict(torch.load(args.path_emg))
     model_rgb.load_state_dict(torch.load(args.path_rgb))
     #### TRAINING SETUP
@@ -121,5 +132,4 @@ if __name__ == '__main__':
 
     accuracy = evaluate(model_emg, model_rgb,loader_emg,loader_rgb,float(args.prob),DEVICE)
     logger.info(f"\n\nAccuracy: {accuracy}")
-
 

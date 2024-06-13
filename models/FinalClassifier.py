@@ -227,7 +227,7 @@ class TRNClassifier(nn.Module):
                 act_all += act_relation
         
         output = self.softmax(act_all)
-        return output
+        return act_all
 
     def return_relationset(self, num_clips, num_clips_relation):
         import itertools
