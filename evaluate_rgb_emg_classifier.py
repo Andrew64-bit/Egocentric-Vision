@@ -58,61 +58,123 @@ if __name__ == '__main__':
 
     #### ARCHITECTURE SETUP
     # Create the Network Architecture object
-    if args.model == 'MLPWithDropout':
-        d_model = 1024
-        num_bottleneck = 512
-        num_bottleneck1 = 256
-        dropout = 0.5
-        model_emg = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
+    # Combine different model emg rgb
+    if hasattr(args, 'model_emg'):
+        if args.model_emg == 'MLPWithDropout':
+            d_model = 1024
+            num_bottleneck = 512
+            num_bottleneck1 = 256
+            dropout = 0.5
+            model_emg = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
+        elif args.model_emg == 'TransformerClassifier':
+            d_model = 64
+            num_heads = 8
+            num_layers = 4
+            d_ff = 128
+            max_seq_length = 5
+            num_classes = 8
+            num_bottleneck = 32
+            dropout = 0.3
+            model_emg = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
+        elif args.model_emg == 'LSTMClassifier':
 
-
-        d_model = 1024
-        num_bottleneck = 512
-        num_bottleneck1 = 256
-        dropout = 0.5
-        model_rgb = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
-    elif args.model == 'TransformerClassifier':
-        d_model = 64
-        num_heads = 8
-        num_layers = 4
-        d_ff = 128
-        max_seq_length = 5
-        num_classes = 8
-        num_bottleneck = 32
-        dropout = 0.3
-        model_emg = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
-
-        d_model = 1024
-        num_heads = 8
-        num_layers = 4
-        d_ff = 2048
-        max_seq_length = 5
-        num_classes = 8
-        num_bottleneck = 512
-        dropout = 0.3
-        model_rgb = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
-    elif args.model == 'LSTMClassifier':
-
-        d_model = 1024
-        dropout = 0.5
-        num_layers = 1
-        hidden_dim = 128
-        model_emg = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
-
-        d_model = 1024
-        dropout = 0.5
-        num_layers = 1
-        hidden_dim = 128
-        model_rgb = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
-    
-    elif args.model == 'TRNClassifier':
-        model_emg = TRNClassifier()
-
-        model_rgb = TRNClassifier()
-    else:
-    
-        raise ValueError(f"Invalid model: {args.model}")
+            d_model = 1024
+            dropout = 0.5
+            num_layers = 1
+            hidden_dim = 128
+            model_emg = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
         
+        elif args.model_emg == 'TRNClassifier':
+            model_emg = TRNClassifier()
+        else:
+            raise ValueError(f"Invalid model: {args.model_emg}")
+        
+        if args.model_rgb == 'MLPWithDropout':
+            d_model = 1024
+            num_bottleneck = 512
+            num_bottleneck1 = 256
+            dropout = 0.5
+            model_rgb = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
+        elif args.model_rgb == 'TransformerClassifier':
+            d_model = 64
+            num_heads = 8
+            num_layers = 4
+            d_ff = 128
+            max_seq_length = 5
+            num_classes = 8
+            num_bottleneck = 32
+            dropout = 0.3
+            model_rgb = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
+        elif args.model_rgb == 'LSTMClassifier':
+
+            d_model = 1024
+            dropout = 0.5
+            num_layers = 1
+            hidden_dim = 128
+            model_rgb = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
+        
+        elif args.model_rgb == 'TRNClassifier':
+            model_rgb = TRNClassifier()
+        else:
+            raise ValueError(f"Invalid model: {args.model_rgb}")
+
+    # Combine same model emg rgb
+    else:
+        if args.model == 'MLPWithDropout':
+            d_model = 1024
+            num_bottleneck = 512
+            num_bottleneck1 = 256
+            dropout = 0.5
+            model_emg = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
+
+
+            d_model = 1024
+            num_bottleneck = 512
+            num_bottleneck1 = 256
+            dropout = 0.5
+            model_rgb = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
+        elif args.model == 'TransformerClassifier':
+            d_model = 64
+            num_heads = 8
+            num_layers = 4
+            d_ff = 128
+            max_seq_length = 5
+            num_classes = 8
+            num_bottleneck = 32
+            dropout = 0.3
+            model_emg = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
+
+            d_model = 1024
+            num_heads = 8
+            num_layers = 4
+            d_ff = 2048
+            max_seq_length = 5
+            num_classes = 8
+            num_bottleneck = 512
+            dropout = 0.3
+            model_rgb = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
+        elif args.model == 'LSTMClassifier':
+
+            d_model = 1024
+            dropout = 0.5
+            num_layers = 1
+            hidden_dim = 128
+            model_emg = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
+
+            d_model = 1024
+            dropout = 0.5
+            num_layers = 1
+            hidden_dim = 128
+            model_rgb = LSTMClassifier(d_model,8,hidden_dim,num_layers, dropout)
+        
+        elif args.model == 'TRNClassifier':
+            model_emg = TRNClassifier()
+
+            model_rgb = TRNClassifier()
+        else:
+        
+            raise ValueError(f"Invalid model: {args.model}")
+            
     #logger.info(f"Model EMG: {model_emg}")
     #logger.info(f"len train_dataset: {len(val_dataset_emg)}")
     #logger.info(f"len train_loader: {len(loader_emg)}")
