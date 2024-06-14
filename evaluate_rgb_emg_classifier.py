@@ -66,16 +66,6 @@ if __name__ == '__main__':
             num_bottleneck1 = 256
             dropout = 0.5
             model_emg = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
-        elif args.model_emg == 'TransformerClassifier':
-            d_model = 64
-            num_heads = 8
-            num_layers = 4
-            d_ff = 128
-            max_seq_length = 5
-            num_classes = 8
-            num_bottleneck = 32
-            dropout = 0.3
-            model_emg = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
         elif args.model_emg == 'LSTMClassifier':
 
             d_model = 1024
@@ -95,16 +85,6 @@ if __name__ == '__main__':
             num_bottleneck1 = 256
             dropout = 0.5
             model_rgb = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
-        elif args.model_rgb == 'TransformerClassifier':
-            d_model = 64
-            num_heads = 8
-            num_layers = 4
-            d_ff = 128
-            max_seq_length = 5
-            num_classes = 8
-            num_bottleneck = 32
-            dropout = 0.3
-            model_rgb = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
         elif args.model_rgb == 'LSTMClassifier':
 
             d_model = 1024
@@ -133,26 +113,6 @@ if __name__ == '__main__':
             num_bottleneck1 = 256
             dropout = 0.5
             model_rgb = MLPWithDropout(d_model,8, num_bottleneck, num_bottleneck1, dropout)
-        elif args.model == 'TransformerClassifier':
-            d_model = 64
-            num_heads = 8
-            num_layers = 4
-            d_ff = 128
-            max_seq_length = 5
-            num_classes = 8
-            num_bottleneck = 32
-            dropout = 0.3
-            model_emg = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
-
-            d_model = 1024
-            num_heads = 8
-            num_layers = 4
-            d_ff = 2048
-            max_seq_length = 5
-            num_classes = 8
-            num_bottleneck = 512
-            dropout = 0.3
-            model_rgb = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, num_bottleneck, dropout)
         elif args.model == 'LSTMClassifier':
 
             d_model = 1024
