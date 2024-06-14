@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier, TRNClassifier
+from models.FinalClassifier import MLPWithDropout, LSTMClassifier, TRNClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader

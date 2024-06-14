@@ -1,4 +1,4 @@
-from models.FinalClassifier import MLP, MLPWithDropout, LSTMClassifier, TransformerClassifier, TRNClassifier
+from models.FinalClassifier import  MLPWithDropout, LSTMClassifier, TRNClassifier
 from utils.loaders import FeaturesDataset
 import torch
 from torch.utils.data import DataLoader
@@ -47,22 +47,8 @@ if __name__ == '__main__':
     
     #### ARCHITECTURE SETUP
     # Create the Network Architecture object
-    if args.model == 'MLP':
-        model = MLP(1024,8)
-    elif args.model == 'TRN':
-        model = TRNClassifier()
-    elif args.model == 'MLPWithDropout':
+    if args.model == 'MLPWithDropout':
         model = MLPWithDropout(1024,8)
-    elif args.model == 'TransformerClassifier':
-        # Iperparametri
-        d_model = 1024
-        num_heads = 8
-        num_layers = 4
-        d_ff = 2048
-        max_seq_length = 5  # Numero di clip
-        num_classes = 8
-        dropout = 0.1
-        model = TransformerClassifier(d_model, num_heads, num_layers, d_ff, max_seq_length, num_classes, dropout)
     elif args.model == 'LSTMClassifier':
         model = LSTMClassifier(1024,8)
     elif args.model == 'TRNClassifier':
